@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged with the generated Info.plist (GENERATE_INFOPLIST_FILE). Only
+	     keys that build settings can't express live here. -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.chriskonstad.vampire.import.*</string>
+	</array>
+	<key>NSAccessorySetupSupports</key>
+	<array>
+		<string>WiFi</string>
+	</array>
+</dict>
+</plist>

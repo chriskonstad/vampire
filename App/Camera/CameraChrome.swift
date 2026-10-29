@@ -96,6 +96,7 @@ struct CameraConnectPanel: View {
                         Label("Find & Connect", systemImage: "dot.radiowaves.left.and.right")
                     }
                     .buttonStyle(.borderedProminent)
+                    CameraWiFiSetupRow(link: camera.link)
                     DisclosureGroup("Enter IP manually") {
                         HStack {
                             TextField("Camera IP", text: $camera.cameraIP)
@@ -144,6 +145,53 @@ struct CameraLogPanel: View {
             .frame(maxHeight: 320)
             .padding(8)
             .background(Color(white: 0.08), in: .rect(cornerRadius: 8))
+        }
+    }
+}
+
+/// One-tap camera Wi-Fi setup (AccessorySetupKit) or the saved network.
+struct CameraWiFiSetupRow: View {
+    let link: CameraLink
+    @State private var password = ""
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if let ssid = link.cameraSSID, link.hasSavedCamera {
+                HStack(spacing: 8) {
+                    Image(systemName: "wifi").foregroundStyle(.green)
+                    Text(ssid).font(.callout).lineLimit(1)
+                    Spacer()
+                    Button("Forget", role: .destructive) { link.forget() }.font(.caption)
+                }
+                .frame(maxWidth: 300)
+            } else {
+                Button { link.setUp() } label: {
+                    Label("Set Up Camera Wi-Fi", systemImage: "wifi.router")
+                }
+                .buttonStyle(.bordered)
+                Text("Pick the camera's Wi-Fi once; Vampire joins it for you after that.")
+                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            }
+            switch link.state {
+            case .joining(let ssid):
+                ProgressView("Joining \(ssid)…").font(.caption)
+            case .failed(let message):
+                Text(message).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
+            default:
+                EmptyView()
+            }
+        }
+        .alert("Camera Wi-Fi password", isPresented: Binding(
+            get: { if case .needsPassword = link.state { true } else { false } },
+            set: { if !$0, case .needsPassword = link.state { link.cancelSetup() } }
+        )) {
+            SecureField("Password", text: $password)
+            Button("Join") { link.provide(password: password); password = "" }
+            Button("Cancel", role: .cancel) { link.cancelSetup(); password = "" }
+        } message: {
+            if case .needsPassword(let ssid) = link.state {
+                Text("Shown on the camera with its Wi-Fi Direct info. Saved in your Keychain for \(ssid).")
+            }
         }
     }
 }

@@ -195,6 +195,9 @@ final class CameraSessionModel {
     /// True while scanning the Wi-Fi for the camera.
     private(set) var isSearching = false
 
+    /// Getting onto the camera's own Wi-Fi without Settings (AccessorySetupKit).
+    @ObservationIgnored private(set) lazy var link = CameraLink(log: { [weak self] in self?.record($0) })
+
     /// Scans the current Wi-Fi for the camera (no IP typing), then connects.
     @discardableResult
     func findAndConnect() -> Task<Bool, Never> {
@@ -202,7 +205,16 @@ final class CameraSessionModel {
         record("searching Wi-Fi for the camera…")
         let preferred = cameraIP
         return Task {
-            let found = await CameraFinder.find(preferred: preferred, log: logSink)
+            var found = await CameraFinder.find(preferred: preferred, log: logSink)
+            if found == nil, link.hasSavedCamera {
+                // Not on the camera's network: join the saved one and look
+                // again (its gateway is the camera).
+                record("camera not on this Wi-Fi — joining \(link.cameraSSID ?? "camera Wi-Fi")")
+                if await link.joinIfConfigured() {
+                    try? await Task.sleep(for: .seconds(3))  // let DHCP settle
+                    found = await CameraFinder.find(preferred: preferred, log: logSink)
+                }
+            }
             isSearching = false
             guard let found else {
                 record("no camera found on this Wi-Fi")
@@ -386,26 +398,36 @@ final class CameraSessionModel {
         guard importTask == nil, !pendingImports.isEmpty else { return }
         wantsLink = true
         var done = 0
+        var doneBytes: Int64 = 0
         var skipped = Set<String>()
-        // Keep the screen on for the whole import: auto-lock suspends the app
-        // and kills the socket mid-RAW. A background task buys ~30s more if
-        // the user leaves the app anyway; past that, the import resumes (at
-        // the byte it stopped) when they come back.
-        UIApplication.shared.isIdleTimerDisabled = true
-        let background = UIApplication.shared.beginBackgroundTask(withName: "camera-import")
+        // Survive backgrounding and the Lock Screen: a continued-processing
+        // task (system Live Activity with progress + cancel). If the system
+        // won't grant one, fall back to keeping the screen awake so
+        // auto-lock can't suspend the app mid-RAW. Either way the import
+        // resumes at the byte it stopped if it is interrupted.
+        let count = pendingImports.count
+        let work = ContinuedWork(title: "Importing \(count) keeper\(count == 1 ? "" : "s")",
+                                 subtitle: "From your camera, full RAWs") { [weak self] in
+            self?.record("import stopped from the Live Activity / by the system")
+            self?.importTask?.cancel()
+        }
+        if !work.isContinued { UIApplication.shared.isIdleTimerDisabled = true }
         importTask = Task {
+            var succeeded = false
             defer {
                 importTask = nil
                 importProgress = nil
                 importWaitingForCamera = false
                 UIApplication.shared.isIdleTimerDisabled = false
-                if background != .invalid { UIApplication.shared.endBackgroundTask(background) }
+                work.finish(success: succeeded)
             }
             while !Task.isCancelled {
                 let queue = pendingImports.filter { !skipped.contains($0.indexID) }
-                guard let photo = queue.first else { break }
+                guard let photo = queue.first else { succeeded = true; break }
                 importProgress = (done, done + queue.count)
+                let totalBytes = doneBytes + queue.reduce(Int64(0)) { $0 + Int64($1.sizeBytes) }
                 guard isConnected, let client else {
+                    work.update(completed: doneBytes, total: totalBytes, subtitle: "Waiting for the camera…")
                     importWaitingForCamera = true
                     if !isConnected, reconnectTask == nil, phase != .connecting { startAutoReconnect() }
                     try? await Task.sleep(for: .seconds(1))
@@ -419,12 +441,19 @@ final class CameraSessionModel {
                     let start = ContinuousClock.now
                     importFileFraction = 0
                     let total = Double(max(photo.sizeBytes, 1))
+                    let subtitle = "\(done + 1) of \(done + queue.count) · \(photo.filename)"
+                    let base = doneBytes
+                    work.update(completed: base, total: totalBytes, subtitle: subtitle)
                     try await client.download(photo, to: tmp) { bytes in
-                        Task { @MainActor in self.importFileFraction = Double(bytes) / total }
+                        Task { @MainActor in
+                            self.importFileFraction = Double(bytes) / total
+                            work.update(completed: base + Int64(bytes), total: totalBytes)
+                        }
                     }
                     try await CameraImporter.importToPhotos(fileURL: tmp, filename: photo.filename)
                     imported.insert(photo.indexID)
                     done += 1
+                    doneBytes += Int64(photo.sizeBytes)
                     record("imported \(photo.filename) in "
                         + (ContinuousClock.now - start).formatted(.units(allowed: [.seconds], width: .narrow)))
                 } catch {
