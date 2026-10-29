@@ -1,0 +1,724 @@
+  ExifToolVersion = 13.55
+  FileName = DSCF2763.jpg
+  Directory = .
+  FileSize = 23537126
+  FileModifyDate = 1781101390
+  FileAccessDate = 1781101403
+  FileInodeChangeDate = 1781101403
+  FilePermissions = 33152
+  FileType = JPEG
+  FileTypeExtension = JPG
+  MIMEType = image/jpeg
+JPEG APP1 (65466 bytes):
+      0006: 45 78 69 66 00 00 49 49 2a 00 08 00 00 00 0d 00 [Exif..II*.......]
+      0016: 0f 01 02 00 09 00 00 00 aa 00 00 00 10 01 02 00 [................]
+      0026: 05 00 00 00 b4 00 00 00 12 01 03 00 01 00 00 00 [................]
+      0036: 08 00 00 00 1a 01 05 00 01 00 00 00 ba 00 00 00 [................]
+      0046: 1b 01 05 00 01 00 00 00 c2 00 00 00 28 01 03 00 [............(...]
+      0056: 01 00 00 00 02 00 00 00 31 01 02 00 1c 00 00 00 [........1.......]
+      0066: ca 00 00 00 32 01 02 00 14 00 00 00 e6 00 00 00 [....2...........]
+      [snip 65354 bytes]
+  ExifByteOrder = II
+  + [IFD0 directory with 13 entries, Little-endian]
+  | 0)  Make = FUJIFILM
+  |     - Tag 0x010f (9 bytes, string[9]):
+  |         00b6: 46 55 4a 49 46 49 4c 4d 00                      [FUJIFILM.]
+  | 1)  Model = X-T5
+  |     - Tag 0x0110 (5 bytes, string[5]):
+  |         00c0: 58 2d 54 35 00                                  [X-T5.]
+  | 2)  Orientation = 8
+  |     - Tag 0x0112 (2 bytes, int16u[1]):
+  |         0036: 08 00                                           [..]
+  | 3)  XResolution = 72 (72/1)
+  |     - Tag 0x011a (8 bytes, rational64u[1]):
+  |         00c6: 48 00 00 00 01 00 00 00                         [H.......]
+  | 4)  YResolution = 72 (72/1)
+  |     - Tag 0x011b (8 bytes, rational64u[1]):
+  |         00ce: 48 00 00 00 01 00 00 00                         [H.......]
+  | 5)  ResolutionUnit = 2
+  |     - Tag 0x0128 (2 bytes, int16u[1]):
+  |         005a: 02 00                                           [..]
+  | 6)  Software = Digital Camera X-T5 Ver4.10
+  |     - Tag 0x0131 (28 bytes, string[28]):
+  |         00d6: 44 69 67 69 74 61 6c 20 43 61 6d 65 72 61 20 58 [Digital Camera X]
+  |         00e6: 2d 54 35 20 56 65 72 34 2e 31 30 00             [-T5 Ver4.10.]
+  | 7)  ModifyDate = 2025:04:26 10:59:00
+  |     - Tag 0x0132 (20 bytes, string[20]):
+  |         00f2: 32 30 32 35 3a 30 34 3a 32 36 20 31 30 3a 35 39 [2025:04:26 10:59]
+  |         0102: 3a 30 30 00                                     [:00.]
+  | 8)  Artist =                                                                       [snip]
+  |     - Tag 0x013b (256 bytes, string[256]):
+  |         0106: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         0116: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         0126: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         0136: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         0146: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         [snip 176 bytes]
+  | 9)  YCbCrPositioning = 2
+  |     - Tag 0x0213 (2 bytes, int16u[1]):
+  |         008a: 02 00                                           [..]
+  | 10) Copyright =                                                                    [snip]
+  |     - Tag 0x8298 (512 bytes, string[512] read as undef[512]):
+  |         0206: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         0216: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         0226: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         0236: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         0246: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         [snip 432 bytes]
+  | 11) ExifOffset (SubDirectory) -->
+  |     - Tag 0x8769 (4 bytes, int32u[1]):
+  |         00a2: 64 04 00 00                                     [d...]
+  | + [ExifIFD directory with 49 entries, Little-endian]
+  | | 0)  ExposureTime = 0.004 (10/2500)
+  | |     - Tag 0x829a (8 bytes, rational64u[1]):
+  | |         06c2: 0a 00 00 00 c4 09 00 00                         [........]
+  | | 1)  FNumber = 4 (400/100)
+  | |     - Tag 0x829d (8 bytes, rational64u[1]):
+  | |         06ca: 90 01 00 00 64 00 00 00                         [....d...]
+  | | 2)  ExposureProgram = 1
+  | |     - Tag 0x8822 (2 bytes, int16u[1]):
+  | |         0492: 01 00                                           [..]
+  | | 3)  ISO = 640
+  | |     - Tag 0x8827 (2 bytes, int16u[1]):
+  | |         049e: 80 02                                           [..]
+  | | 4)  SensitivityType = 1
+  | |     - Tag 0x8830 (2 bytes, int16u[1]):
+  | |         04aa: 01 00                                           [..]
+  | | 5)  ExifVersion = 0232
+  | |     - Tag 0x9000 (4 bytes, undef[4]):
+  | |         04b6: 30 32 33 32                                     [0232]
+  | | 6)  DateTimeOriginal = 2025:04:26 10:59:00
+  | |     - Tag 0x9003 (20 bytes, string[20]):
+  | |         06d2: 32 30 32 35 3a 30 34 3a 32 36 20 31 30 3a 35 39 [2025:04:26 10:59]
+  | |         06e2: 3a 30 30 00                                     [:00.]
+  | | 7)  CreateDate = 2025:04:26 10:59:00
+  | |     - Tag 0x9004 (20 bytes, string[20]):
+  | |         06e6: 32 30 32 35 3a 30 34 3a 32 36 20 31 30 3a 35 39 [2025:04:26 10:59]
+  | |         06f6: 3a 30 30 00                                     [:00.]
+  | | 8)  OffsetTime = -08:00
+  | |     - Tag 0x9010 (7 bytes, string[7]):
+  | |         06fa: 2d 30 38 3a 30 30 00                            [-08:00.]
+  | | 9)  OffsetTimeOriginal = -08:00
+  | |     - Tag 0x9011 (7 bytes, string[7]):
+  | |         0702: 2d 30 38 3a 30 30 00                            [-08:00.]
+  | | 10) OffsetTimeDigitized = -08:00
+  | |     - Tag 0x9012 (7 bytes, string[7]):
+  | |         070a: 2d 30 38 3a 30 30 00                            [-08:00.]
+  | | 11) ComponentsConfiguration = 1 2 3 0
+  | |     - Tag 0x9101 (4 bytes, undef[4] read as int8u[4]):
+  | |         04fe: 01 02 03 00                                     [....]
+  | | 12) CompressedBitsPerPixel = 4.8 (48/10)
+  | |     - Tag 0x9102 (8 bytes, rational64u[1]):
+  | |         0712: 30 00 00 00 0a 00 00 00                         [0.......]
+  | | 13) ShutterSpeedValue = 8 (800/100)
+  | |     - Tag 0x9201 (8 bytes, rational64s[1]):
+  | |         071a: 20 03 00 00 64 00 00 00                         [ ...d...]
+  | | 14) ApertureValue = 4 (400/100)
+  | |     - Tag 0x9202 (8 bytes, rational64u[1]):
+  | |         0722: 90 01 00 00 64 00 00 00                         [....d...]
+  | | 15) BrightnessValue = 5.28 (528/100)
+  | |     - Tag 0x9203 (8 bytes, rational64s[1]):
+  | |         072a: 10 02 00 00 64 00 00 00                         [....d...]
+  | | 16) ExposureCompensation = 0.33 (33/100)
+  | |     - Tag 0x9204 (8 bytes, rational64s[1]):
+  | |         0732: 21 00 00 00 64 00 00 00                         [!...d...]
+  | | 17) MaxApertureValue = 4 (400/100)
+  | |     - Tag 0x9205 (8 bytes, rational64u[1]):
+  | |         073a: 90 01 00 00 64 00 00 00                         [....d...]
+  | | 18) MeteringMode = 5
+  | |     - Tag 0x9207 (2 bytes, int16u[1]):
+  | |         0552: 05 00                                           [..]
+  | | 19) LightSource = 0
+  | |     - Tag 0x9208 (2 bytes, int16u[1]):
+  | |         055e: 00 00                                           [..]
+  | | 20) Flash = 0
+  | |     - Tag 0x9209 (2 bytes, int16u[1]):
+  | |         056a: 00 00                                           [..]
+  | | 21) FocalLength = 42.9 (4290/100)
+  | |     - Tag 0x920a (8 bytes, rational64u[1]):
+  | |         0742: c2 10 00 00 64 00 00 00                         [....d...]
+  | | 22) MakerNoteFujiFilm (SubDirectory) -->
+  | |     - Tag 0x927c (1690 bytes, undef[1690]):
+  | |         08e8: 46 55 4a 49 46 49 4c 4d 0c 00 00 00 5c 00 00 00 [FUJIFILM....\...]
+  | |         08f8: 07 00 04 00 00 00 30 31 33 30 10 00 02 00 30 00 [......0130....0.]
+  | |         0908: 00 00 62 04 00 00 20 00 02 00 06 00 00 00 92 04 [..b... .........]
+  | |         0918: 00 00 00 10 02 00 08 00 00 00 98 04 00 00 01 10 [................]
+  | |         0928: 03 00 01 00 00 00 03 00 00 00 02 10 03 00 01 00 [................]
+  | |         [snip 1610 bytes]
+  | | + [MakerNotes directory with 92 entries, Little-endian]
+  | | | 0)  Version = 0130
+  | | |     - Tag 0x0000 (4 bytes, undef[4]):
+  | | |         08fe: 30 31 33 30                                     [0130]
+  | | | 1)  InternalSerialNumber = 000000000000     303030303030231012000000000000
+  | | |     - Tag 0x0010 (48 bytes, string[48]):
+  | | |         0d4a: 46 46 30 32 42 37 35 39 33 37 34 39 20 20 20 20 [000000000000    ]
+  | | |         0d5a: 20 35 39 33 35 33 36 33 38 33 38 33 32 32 33 31 [ 303030303030231]
+  | | |         0d6a: 30 31 32 30 37 46 33 32 30 32 31 34 35 30 36 00 [012000000000000.]
+  | | | 2)  FujiFilm_0x0020 = 16660
+  | | |     - Tag 0x0020 (6 bytes, string[6]):
+  | | |         0d7a: 31 36 36 36 30 00                               [16660.]
+  | | | 3)  Quality = FINE   
+  | | |     - Tag 0x1000 (8 bytes, string[8]):
+  | | |         0d80: 46 49 4e 45 20 20 20 00                         [FINE   .]
+  | | | 4)  Sharpness = 3
+  | | |     - Tag 0x1001 (2 bytes, int16u[1]):
+  | | |         092e: 03 00                                           [..]
+  | | | 5)  WhiteBalance = 0
+  | | |     - Tag 0x1002 (2 bytes, int16u[1]):
+  | | |         093a: 00 00                                           [..]
+  | | | 6)  Saturation = 0
+  | | |     - Tag 0x1003 (2 bytes, int16u[1]):
+  | | |         0946: 00 00                                           [..]
+  | | | 7)  Contrast = 0
+  | | |     - Tag 0x1004 (2 bytes, int16u[1]):
+  | | |         0952: 00 00                                           [..]
+  | | | 8)  WhiteBalanceFineTune = 0 0
+  | | |     - Tag 0x100a (8 bytes, int32s[2]):
+  | | |         0d88: 00 00 00 00 00 00 00 00                         [........]
+  | | | 9)  NoiseReduction = 256
+  | | |     - Tag 0x100b (2 bytes, int16u[1]):
+  | | |         096a: 00 01                                           [..]
+  | | | 10) NoiseReduction = 736
+  | | |     - Tag 0x100e (2 bytes, int16u[1]):
+  | | |         0976: e0 02                                           [..]
+  | | | 11) Clarity = 0
+  | | |     - Tag 0x100f (4 bytes, int32s[1]):
+  | | |         0982: 00 00 00 00                                     [....]
+  | | | 12) FujiFlashMode = 32768
+  | | |     - Tag 0x1010 (2 bytes, int16u[1]):
+  | | |         098e: 00 80                                           [..]
+  | | | 13) FlashExposureComp = 0 (0/100)
+  | | |     - Tag 0x1011 (8 bytes, rational64s[1]):
+  | | |         0d90: 00 00 00 00 64 00 00 00                         [....d...]
+  | | | 14) FocusMode = 0
+  | | |     - Tag 0x1021 (2 bytes, int16u[1]):
+  | | |         09a6: 00 00                                           [..]
+  | | | 15) AFMode = 1
+  | | |     - Tag 0x1022 (2 bytes, int16u[1]):
+  | | |         09b2: 01 00                                           [..]
+  | | | 16) FocusPixel = 6052 2063
+  | | |     - Tag 0x1023 (4 bytes, int16u[2]):
+  | | |         09be: a4 17 0f 08                                     [....]
+  | | | 17) FujiFilm_0x1025 = 917562
+  | | |     - Tag 0x1025 (4 bytes, int32u[1]):
+  | | |         09ca: 3a 00 0e 00                                     [:...]
+  | | | 18) FujiFilm_0x1026 = 64
+  | | |     - Tag 0x1026 (2 bytes, int16u[1]):
+  | | |         09d6: 40 00                                           [@.]
+  | | | 19) PrioritySettings (SubDirectory) -->
+  | | |     - Tag 0x102b (2 bytes, int16u[1] read as undef[2]):
+  | | |         09e2: 11 00                                           [..]
+  | | | + [BinaryData directory, 2 bytes, Little-endian]
+  | | | | AF-SPriority = 1
+  | | | | - Tag '0.1', mask 0x0f (2 bytes, int16u[1]):
+  | | | |     09e2: 11 00                                           [..]
+  | | | | AF-CPriority = 1
+  | | | | - Tag '0.2', mask 0xf0 (2 bytes, int16u[1]):
+  | | | |     09e2: 11 00                                           [..]
+  | | | 20) FujiFilm_0x102c = 131073
+  | | |     - Tag 0x102c (4 bytes, int32u[1]):
+  | | |         09ee: 01 00 02 00                                     [....]
+  | | | 21) FocusSettings (SubDirectory) -->
+  | | |     - Tag 0x102d (4 bytes, int32u[1] read as undef[4]):
+  | | |         09fa: 02 50 00 00                                     [.P..]
+  | | | + [BinaryData directory, 4 bytes, Little-endian]
+  | | | | FocusMode2 = 2
+  | | | | - Tag '0.1', mask 0x0f (4 bytes, int32u[1]):
+  | | | |     09fa: 02 50 00 00                                     [.P..]
+  | | | | PreAF = 0
+  | | | | - Tag '0.2', mask 0xf0 (4 bytes, int32u[1]):
+  | | | |     09fa: 02 50 00 00                                     [.P..]
+  | | | | AFAreaMode = 0
+  | | | | - Tag '0.3', mask 0xf00 (4 bytes, int32u[1]):
+  | | | |     09fa: 02 50 00 00                                     [.P..]
+  | | | | AFAreaPointSize = 5
+  | | | | - Tag '0.4', mask 0xf000 (4 bytes, int32u[1]):
+  | | | |     09fa: 02 50 00 00                                     [.P..]
+  | | | | AFAreaZoneSize = 0
+  | | | | - Tag '0.5', mask 0xff0000 (4 bytes, int32u[1]):
+  | | | |     09fa: 02 50 00 00                                     [.P..]
+  | | | 22) AFCSettings (SubDirectory) -->
+  | | |     - Tag 0x102e (4 bytes, int32u[1] read as undef[4]):
+  | | |         0a06: 02 01 00 00                                     [....]
+  | | | + [BinaryData directory, 4 bytes, Little-endian]
+  | | | | AF-CSetting = 258
+  | | | | - Tag 0x0000 (4 bytes, int32u[1]):
+  | | | |     0a06: 02 01 00 00                                     [....]
+  | | | | AF-CTrackingSensitivity = 2
+  | | | | - Tag '0.1', mask 0x0f (4 bytes, int32u[1]):
+  | | | |     0a06: 02 01 00 00                                     [....]
+  | | | | AF-CSpeedTrackingSensitivity = 0
+  | | | | - Tag '0.2', mask 0xf0 (4 bytes, int32u[1]):
+  | | | |     0a06: 02 01 00 00                                     [....]
+  | | | | AF-CZoneAreaSwitching = 1
+  | | | | - Tag '0.3', mask 0xf00 (4 bytes, int32u[1]):
+  | | | |     0a06: 02 01 00 00                                     [....]
+  | | | 23) SlowSync = 0
+  | | |     - Tag 0x1030 (2 bytes, int16u[1]):
+  | | |         0a12: 00 00                                           [..]
+  | | | 24) PictureMode = 768
+  | | |     - Tag 0x1031 (2 bytes, int16u[1]):
+  | | |         0a1e: 00 03                                           [..]
+  | | | 25) ExposureCount = 1
+  | | |     - Tag 0x1032 (2 bytes, int16u[1]):
+  | | |         0a2a: 01 00                                           [..]
+  | | | 26) ShadowTone = 0
+  | | |     - Tag 0x1040 (4 bytes, int32s[1]):
+  | | |         0a36: 00 00 00 00                                     [....]
+  | | | 27) HighlightTone = 0
+  | | |     - Tag 0x1041 (4 bytes, int32s[1]):
+  | | |         0a42: 00 00 00 00                                     [....]
+  | | | 28) LensModulationOptimizer = 1
+  | | |     - Tag 0x1045 (4 bytes, int32u[1]):
+  | | |         0a4e: 01 00 00 00                                     [....]
+  | | | 29) FujiFilm_0x1046 = 1
+  | | |     - Tag 0x1046 (4 bytes, int32u[1]):
+  | | |         0a5a: 01 00 00 00                                     [....]
+  | | | 30) GrainEffectRoughness = 0
+  | | |     - Tag 0x1047 (4 bytes, int32s[1]):
+  | | |         0a66: 00 00 00 00                                     [....]
+  | | | 31) ColorChromeEffect = 0
+  | | |     - Tag 0x1048 (4 bytes, int32s[1]):
+  | | |         0a72: 00 00 00 00                                     [....]
+  | | | 32) FujiFilm_0x104a = 0
+  | | |     - Tag 0x104a (4 bytes, int32u[1]):
+  | | |         0a7e: 00 00 00 00                                     [....]
+  | | | 33) GrainEffectSize = 0
+  | | |     - Tag 0x104c (2 bytes, int16u[1]):
+  | | |         0a8a: 00 00                                           [..]
+  | | | 34) CropMode = 0
+  | | |     - Tag 0x104d (2 bytes, int16u[1]):
+  | | |         0a96: 00 00                                           [..]
+  | | | 35) ColorChromeFXBlue = 0
+  | | |     - Tag 0x104e (4 bytes, int32s[1]):
+  | | |         0aa2: 00 00 00 00                                     [....]
+  | | | 36) ShutterType = 0
+  | | |     - Tag 0x1050 (2 bytes, int16u[1]):
+  | | |         0aae: 00 00                                           [..]
+  | | | 37) AutoBracketing = 1
+  | | |     - Tag 0x1100 (2 bytes, int16u[1]):
+  | | |         0aba: 01 00                                           [..]
+  | | | 38) SequenceNumber = 2
+  | | |     - Tag 0x1101 (2 bytes, int16u[1]):
+  | | |         0ac6: 02 00                                           [..]
+  | | | 39) DriveSettings (SubDirectory) -->
+  | | |     - Tag 0x1103 (4 bytes, int32u[1] read as undef[4]):
+  | | |         0ad2: 01 02 01 05                                     [....]
+  | | | + [BinaryData directory, 4 bytes, Little-endian]
+  | | | | DriveMode = 1
+  | | | | - Tag '0.1', mask 0xff (4 bytes, int32u[1]):
+  | | | |     0ad2: 01 02 01 05                                     [....]
+  | | | | DriveSpeed = 5
+  | | | | - Tag '0.2', mask 0xff000000 (4 bytes, int32u[1]):
+  | | | |     0ad2: 01 02 01 05                                     [....]
+  | | | 40) FujiFilm_0x1200 = 0
+  | | |     - Tag 0x1200 (2 bytes, int16u[1]):
+  | | |         0ade: 00 00                                           [..]
+  | | | 41) BlurWarning = 0
+  | | |     - Tag 0x1300 (2 bytes, int16u[1]):
+  | | |         0aea: 00 00                                           [..]
+  | | | 42) FocusWarning = 0
+  | | |     - Tag 0x1301 (2 bytes, int16u[1]):
+  | | |         0af6: 00 00                                           [..]
+  | | | 43) ExposureWarning = 0
+  | | |     - Tag 0x1302 (2 bytes, int16u[1]):
+  | | |         0b02: 00 00                                           [..]
+  | | | 44) FujiFilm_0x1303 = 0
+  | | |     - Tag 0x1303 (2 bytes, int16u[1]):
+  | | |         0b0e: 00 00                                           [..]
+  | | | 45) FujiFilm_0x1304 = 0
+  | | |     - Tag 0x1304 (2 bytes, int16u[1]):
+  | | |         0b1a: 00 00                                           [..]
+  | | | 46) FujiFilm_0x1305 = 0
+  | | |     - Tag 0x1305 (2 bytes, int16u[1]):
+  | | |         0b26: 00 00                                           [..]
+  | | | 47) DynamicRange = 1
+  | | |     - Tag 0x1400 (2 bytes, int16u[1]):
+  | | |         0b32: 01 00                                           [..]
+  | | | 48) FilmMode = 512
+  | | |     - Tag 0x1401 (2 bytes, int16u[1]):
+  | | |         0b3e: 00 02                                           [..]
+  | | | 49) DynamicRangeSetting = 0
+  | | |     - Tag 0x1402 (2 bytes, int16u[1]):
+  | | |         0b4a: 00 00                                           [..]
+  | | | 50) MinFocalLength = 16 (1600/100)
+  | | |     - Tag 0x1404 (8 bytes, rational64u[1]):
+  | | |         0d98: 40 06 00 00 64 00 00 00                         [@...d...]
+  | | | 51) MaxFocalLength = 80 (8000/100)
+  | | |     - Tag 0x1405 (8 bytes, rational64u[1]):
+  | | |         0da0: 40 1f 00 00 64 00 00 00                         [@...d...]
+  | | | 52) MaxApertureAtMinFocal = 4 (400/100)
+  | | |     - Tag 0x1406 (8 bytes, rational64u[1]):
+  | | |         0da8: 90 01 00 00 64 00 00 00                         [....d...]
+  | | | 53) MaxApertureAtMaxFocal = 4 (400/100)
+  | | |     - Tag 0x1407 (8 bytes, rational64u[1]):
+  | | |         0db0: 90 01 00 00 64 00 00 00                         [....d...]
+  | | | 54) FujiFilm_0x1408 = 0400
+  | | |     - Tag 0x1408 (4 bytes, undef[4]):
+  | | |         0b86: 30 34 30 30                                     [0400]
+  | | | 55) FujiFilm_0x1409 = 0100
+  | | |     - Tag 0x1409 (4 bytes, undef[4]):
+  | | |         0b92: 30 31 30 30                                     [0100]
+  | | | 56) FujiFilm_0x140a = 19
+  | | |     - Tag 0x140a (2 bytes, int16u[1]):
+  | | |         0b9e: 13 00                                           [..]
+  | | | 57) AutoDynamicRange = 100
+  | | |     - Tag 0x140b (2 bytes, int16u[1]):
+  | | |         0baa: 64 00                                           [d.]
+  | | | 58) ImageStabilization = 3 1 0
+  | | |     - Tag 0x1422 (6 bytes, int16u[3]):
+  | | |         0db8: 03 00 01 00 00 00                               [......]
+  | | | 59) FujiFilm_0x1424 = 4608
+  | | |     - Tag 0x1424 (2 bytes, int16u[1]):
+  | | |         0bc2: 00 12                                           [..]
+  | | | 60) FujiFilm_0x1430 = 
+  | | |     - Tag 0x1430 (129 bytes, undef[129]):
+  | | |         0dbe: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | |         0dce: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | |         0dde: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | |         0dee: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | |         0dfe: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | |         [snip 49 bytes]
+  | | | 61) ImageGeneration = 0
+  | | |     - Tag 0x1436 (2 bytes, int16u[1]):
+  | | |         0bda: 00 00                                           [..]
+  | | | 62) ImageCount = 2762
+  | | |     - Tag 0x1438 (2 bytes, int16u[1]):
+  | | |         0be6: ca 0a                                           [..]
+  | | | 63) FujiFilm_0x1439 = 
+  | | |     - Tag 0x1439 (48 bytes, string[48]):
+  | | |         0e40: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | |         0e50: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | |         0e60: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | | 64) FujiFilm_0x1442 = 0
+  | | |     - Tag 0x1442 (4 bytes, int32u[1]):
+  | | |         0bfe: 00 00 00 00                                     [....]
+  | | | 65) FlickerReduction = 1
+  | | |     - Tag 0x1446 (4 bytes, int32u[1]):
+  | | |         0c0a: 01 00 00 00                                     [....]
+  | | | 66) FujiModel = X-T5_0200
+  | | |     - Tag 0x1447 (32 bytes, string[32]):
+  | | |         0e70: 58 2d 54 35 5f 30 32 30 30 00 00 00 00 00 00 00 [X-T5_0200.......]
+  | | |         0e80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | | 67) FujiModel2 = X-T5_0200
+  | | |     - Tag 0x1448 (32 bytes, string[32]):
+  | | |         0e90: 58 2d 54 35 5f 30 32 30 30 00 00 00 00 00 00 00 [X-T5_0200.......]
+  | | |         0ea0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | | 68) FujiFilm_0x1449 = 251723874
+  | | |     - Tag 0x1449 (4 bytes, int32u[1]):
+  | | |         0c2e: 62 00 01 0f                                     [b...]
+  | | | 69) WBRed = 605
+  | | |     - Tag 0x144a (2 bytes, int16u[1]):
+  | | |         0c3a: 5d 02                                           [].]
+  | | | 70) WBGreen = 302
+  | | |     - Tag 0x144b (2 bytes, int16u[1]):
+  | | |         0c46: 2e 01                                           [..]
+  | | | 71) WBBlue = 526
+  | | |     - Tag 0x144c (2 bytes, int16u[1]):
+  | | |         0c52: 0e 02                                           [..]
+  | | | 72) RollAngle = 87.7 (877/10)
+  | | |     - Tag 0x144d (8 bytes, rational64s[1]):
+  | | |         0eb0: 6d 03 00 00 0a 00 00 00                         [m.......]
+  | | | 73) FacesDetected = 1
+  | | |     - Tag 0x4100 (2 bytes, int16u[1]):
+  | | |         0c6a: 01 00                                           [..]
+  | | | 74) FujiFilm_0x4101 = 8
+  | | |     - Tag 0x4101 (1 bytes, int8u[1]):
+  | | |         0c76: 08                                              [.]
+  | | | 75) FujiFilm_0x4102 = 4
+  | | |     - Tag 0x4102 (1 bytes, int8u[1]):
+  | | |         0c82: 04                                              [.]
+  | | | 76) FacePositions = 5204 1366 7207 2961
+  | | |     - Tag 0x4103 (8 bytes, int16u[4]):
+  | | |         0eb8: 54 14 56 05 27 1c 91 0b                         [T.V.'...]
+  | | | 77) FujiFilm_0x4104 = 44131 17376 61117 37665
+  | | |     - Tag 0x4104 (8 bytes, int16u[4]):
+  | | |         0ec0: 63 ac e0 43 bd ee 21 93                         [c..C..!.]
+  | | | 78) FujiFilm_0x4105 = 0
+  | | |     - Tag 0x4105 (2 bytes, int16u[1]):
+  | | |         0ca6: 00 00                                           [..]
+  | | | 79) FujiFilm_0x4180 = 84
+  | | |     - Tag 0x4180 (2 bytes, int16u[1]):
+  | | |         0cb2: 54 00                                           [T.]
+  | | | 80) FujiFilm_0x4181 = 0
+  | | |     - Tag 0x4181 (1 bytes, int8u[1]):
+  | | |         0cbe: 00                                              [.]
+  | | | 81) NumFaceElements = 5
+  | | |     - Tag 0x4200 (2 bytes, int16u[1]):
+  | | |         0cca: 05 00                                           [..]
+  | | | 82) FaceElementTypes = 8 7 1 2 3
+  | | |     - Tag 0x4201 (10 bytes, int16u[5]):
+  | | |         0ec8: 08 00 07 00 01 00 02 00 03 00                   [..........]
+  | | | 83) FujiFilm_0x4202 = 4 4 4 4 4
+  | | |     - Tag 0x4202 (5 bytes, int8u[5]):
+  | | |         0ed2: 04 04 04 04 04                                  [.....]
+  | | | 84) FaceElementPositions = 5204 1366 7207 2961 652 604 7026 4485 5482 1777 6277[snip]
+  | | |     - Tag 0x4203 (40 bytes, int16u[20]):
+  | | |         0ed8: 54 14 56 05 27 1c 91 0b 8c 02 5c 02 72 1b 85 11 [T.V.'.....\.r...]
+  | | |         0ee8: 6a 15 f1 06 85 18 7b 0a 95 17 82 07 24 18 36 08 [j.....{.....$.6.]
+  | | |         0ef8: 02 18 12 09 91 18 d2 09                         [........]
+  | | | 85) FujiFilm_0x4204 = 44131 17376 61117 37665 5529 7683 59582 57051 46489 22604[snip]
+  | | |     - Tag 0x4204 (40 bytes, int16u[20]):
+  | | |         0f00: 63 ac e0 43 bd ee 21 93 99 15 03 1e be e8 db de [c..C..!.........]
+  | | |         0f10: 99 b5 4c 58 ef cf 51 85 fb c7 80 5f b8 cc 72 68 [..LX..Q...._..rh]
+  | | |         0f20: 98 cb 60 73 54 d0 eb 7c                         [..`sT..|]
+  | | | 86) FujiFilm_0x4205 = 0 0 0 0 0
+  | | |     - Tag 0x4205 (10 bytes, int16u[5]):
+  | | |         0f28: 00 00 00 00 00 00 00 00 00 00                   [..........]
+  | | | 87) FujiFilm_0x4208 = 3 3 3 3 3
+  | | |     - Tag 0x4208 (20 bytes, int32u[5]):
+  | | |         0f32: 03 00 00 00 03 00 00 00 03 00 00 00 03 00 00 00 [................]
+  | | |         0f42: 03 00 00 00                                     [....]
+  | | | 88) FujiFilm_0x4280 = 84 30 93 75 30
+  | | |     - Tag 0x4280 (10 bytes, int16u[5]):
+  | | |         0f46: 54 00 1e 00 5d 00 4b 00 1e 00                   [T...].K...]
+  | | | 89) FujiFilm_0x4281 = 0 0 0 0 0
+  | | |     - Tag 0x4281 (10 bytes, int16u[5]):
+  | | |         0f50: 00 00 00 00 00 00 00 00 00 00                   [..........]
+  | | | 90) FujiFilm_0x4283 = 0 0 0 0 0
+  | | |     - Tag 0x4283 (20 bytes, int32u[5]):
+  | | |         0f5a: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | |         0f6a: 00 00 00 00                                     [....]
+  | | | 91) FujiFilm_0x4284 = 0 0 0 0 0
+  | | |     - Tag 0x4284 (20 bytes, int32u[5]):
+  | | |         0f6e: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | |         0f7e: 00 00 00 00                                     [....]
+  | | 23) UserComment =                                                                [snip]
+  | |     - Tag 0x9286 (256 bytes, undef[256]):
+  | |         074a: 00 00 00 00 00 00 00 00 20 20 20 20 20 20 20 20 [........        ]
+  | |         075a: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  | |         076a: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  | |         077a: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  | |         078a: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  | |         [snip 176 bytes]
+  | | 24) CameraElevationAngle = -7 (-70/10)
+  | |     - Tag 0x9405 (8 bytes, rational64s[1]):
+  | |         084a: ba ff ff ff 0a 00 00 00                         [........]
+  | | 25) FlashpixVersion = 0100
+  | |     - Tag 0xa000 (4 bytes, undef[4]):
+  | |         05a6: 30 31 30 30                                     [0100]
+  | | 26) ColorSpace = 1
+  | |     - Tag 0xa001 (2 bytes, int16u[1]):
+  | |         05b2: 01 00                                           [..]
+  | | 27) ExifImageWidth = 7728
+  | |     - Tag 0xa002 (4 bytes, int32u[1]):
+  | |         05be: 30 1e 00 00                                     [0...]
+  | | 28) ExifImageHeight = 5152
+  | |     - Tag 0xa003 (4 bytes, int32u[1]):
+  | |         05ca: 20 14 00 00                                     [ ...]
+  | | 29) InteropOffset (SubDirectory) -->
+  | |     - Tag 0xa005 (4 bytes, int32u[1]):
+  | |         05d6: 76 0f 00 00                                     [v...]
+  | | + [InteropIFD directory with 2 entries, Little-endian]
+  | | | 0)  InteropIndex = R98
+  | | |     - Tag 0x0001 (4 bytes, string[4]):
+  | | |         0f8c: 52 39 38 00                                     [R98.]
+  | | | 1)  InteropVersion = 0100
+  | | |     - Tag 0x0002 (4 bytes, undef[4]):
+  | | |         0f98: 30 31 30 30                                     [0100]
+  | | 30) FocalPlaneXResolution = 3289 (3289/1)
+  | |     - Tag 0xa20e (8 bytes, rational64u[1]):
+  | |         0852: d9 0c 00 00 01 00 00 00                         [........]
+  | | 31) FocalPlaneYResolution = 3289 (3289/1)
+  | |     - Tag 0xa20f (8 bytes, rational64u[1]):
+  | |         085a: d9 0c 00 00 01 00 00 00                         [........]
+  | | 32) FocalPlaneResolutionUnit = 3
+  | |     - Tag 0xa210 (2 bytes, int16u[1]):
+  | |         05fa: 03 00                                           [..]
+  | | 33) SensingMethod = 2
+  | |     - Tag 0xa217 (2 bytes, int16u[1]):
+  | |         0606: 02 00                                           [..]
+  | | 34) FileSource = 3
+  | |     - Tag 0xa300 (1 bytes, undef[1]):
+  | |         0612: 03                                              [.]
+  | | 35) SceneType = 1
+  | |     - Tag 0xa301 (1 bytes, undef[1]):
+  | |         061e: 01                                              [.]
+  | | 36) CustomRendered = 0
+  | |     - Tag 0xa401 (2 bytes, int16u[1]):
+  | |         062a: 00 00                                           [..]
+  | | 37) ExposureMode = 1
+  | |     - Tag 0xa402 (2 bytes, int16u[1]):
+  | |         0636: 01 00                                           [..]
+  | | 38) WhiteBalance = 0
+  | |     - Tag 0xa403 (2 bytes, int16u[1]):
+  | |         0642: 00 00                                           [..]
+  | | 39) FocalLengthIn35mmFormat = 64
+  | |     - Tag 0xa405 (2 bytes, int16u[1]):
+  | |         064e: 40 00                                           [@.]
+  | | 40) SceneCaptureType = 0
+  | |     - Tag 0xa406 (2 bytes, int16u[1]):
+  | |         065a: 00 00                                           [..]
+  | | 41) Sharpness = 0
+  | |     - Tag 0xa40a (2 bytes, int16u[1]):
+  | |         0666: 00 00                                           [..]
+  | | 42) SubjectDistanceRange = 0
+  | |     - Tag 0xa40c (2 bytes, int16u[1]):
+  | |         0672: 00 00                                           [..]
+  | | 43) SerialNumber = 00000000
+  | |     - Tag 0xa431 (11 bytes, string[11]):
+  | |         0862: 33 44 41 30 31 37 31 31 00 00 00                [00000000...]
+  | | 44) LensInfo = 16 80 4 4 (1600/100 8000/100 400/100 400/100)
+  | |     - Tag 0xa432 (32 bytes, rational64u[4]):
+  | |         086e: 40 06 00 00 64 00 00 00 40 1f 00 00 64 00 00 00 [@...d...@...d...]
+  | |         087e: 90 01 00 00 64 00 00 00 90 01 00 00 64 00 00 00 [....d.......d...]
+  | | 45) LensMake = FUJIFILM
+  | |     - Tag 0xa433 (13 bytes, string[13]):
+  | |         088e: 46 55 4a 49 46 49 4c 4d 00 00 00 00 00          [FUJIFILM.....]
+  | | 46) LensModel = XF16-80mmF4 R OIS WR
+  | |     - Tag 0xa434 (64 bytes, string[64]):
+  | |         089c: 58 46 31 36 2d 38 30 6d 6d 46 34 20 52 20 4f 49 [XF16-80mmF4 R OI]
+  | |         08ac: 53 20 57 52 00 00 00 00 00 00 00 00 00 00 00 00 [S WR............]
+  | |         08bc: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | |         08cc: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  | | 47) LensSerialNumber = 00000000
+  | |     - Tag 0xa435 (11 bytes, string[11]):
+  | |         08dc: 33 43 41 30 34 39 37 36 00 00 00                [00000000...]
+  | | 48) CompositeImage = 1
+  | |     - Tag 0xa460 (2 bytes, int16u[1]):
+  | |         06ba: 01 00                                           [..]
+  | 12) PrintIM (SubDirectory) -->
+  |     - Tag 0xc4a5 (106 bytes, undef[106]):
+  |         0406: 50 72 69 6e 74 49 4d 00 30 32 35 30 00 00 03 00 [PrintIM.0250....]
+  |         0416: 02 00 01 00 00 00 03 00 22 00 00 00 01 01 00 00 [........".......]
+  |         0426: 00 00 09 11 00 00 10 27 00 00 0b 0f 00 00 10 27 [.......'.......']
+  |         0436: 00 00 97 05 00 00 10 27 00 00 b0 08 00 00 10 27 [.......'.......']
+  |         0446: 00 00 01 1c 00 00 10 27 00 00 5e 02 00 00 10 27 [.......'..^....']
+  |         [snip 26 bytes]
+  | + [PrintIM directory with 3 entries]
+  | | PrintIMVersion = 0250
+  | | - Tag 'PrintIMVersion' (4 bytes):
+  | |     0402: 30 32 35 30                                     [0250]
+  | | 0)  PrintIM_0x0002 = 1
+  | |     - Tag 0x0002 (4 bytes):
+  | |         040c: 01 00 00 00                                     [....]
+  | | 1)  PrintIM_0x0003 = 34
+  | |     - Tag 0x0003 (4 bytes):
+  | |         0412: 22 00 00 00                                     ["...]
+  | | 2)  PrintIM_0x0101 = 0
+  | |     - Tag 0x0101 (4 bytes):
+  | |         0418: 00 00 00 00                                     [....]
+  + [IFD1 directory with 9 entries, Little-endian]
+  | 0)  Compression = 6
+  |     - Tag 0x0103 (2 bytes, int16u[1]):
+  |         0faa: 06 00                                           [..]
+  | 1)  Orientation = 8
+  |     - Tag 0x0112 (2 bytes, int16u[1]):
+  |         0fb6: 08 00                                           [..]
+  | 2)  XResolution = 72 (72/1)
+  |     - Tag 0x011a (8 bytes, rational64u[1]):
+  |         1012: 48 00 00 00 01 00 00 00                         [H.......]
+  | 3)  YResolution = 72 (72/1)
+  |     - Tag 0x011b (8 bytes, rational64u[1]):
+  |         101a: 48 00 00 00 01 00 00 00                         [H.......]
+  | 4)  ResolutionUnit = 2
+  |     - Tag 0x0128 (2 bytes, int16u[1]):
+  |         0fda: 02 00                                           [..]
+  | 5)  Artist =                                                                       [snip]
+  |     - Tag 0x013b (256 bytes, string[256]):
+  |         1022: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         1032: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         1042: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         1052: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         1062: 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 [                ]
+  |         [snip 176 bytes]
+  | 6)  ThumbnailOffset = 4388
+  |     - Tag 0x0201 (4 bytes, int32u[1]):
+  |         0ff2: 24 11 00 00                                     [$...]
+  | 7)  ThumbnailLength = 8153
+  |     - Tag 0x0202 (4 bytes, int32u[1]):
+  |         0ffe: d9 1f 00 00                                     [....]
+  | 8)  YCbCrPositioning = 2
+  |     - Tag 0x0213 (2 bytes, int16u[1]):
+  |         100a: 02 00                                           [..]
+JPEG APP1 (12284 bytes):
+      ffc4: 68 74 74 70 3a 2f 2f 6e 73 2e 61 64 6f 62 65 2e [http://ns.adobe.]
+      ffd4: 63 6f 6d 2f 78 61 70 2f 31 2e 30 2f 00 3c 3f 78 [com/xap/1.0/.<?x]
+      ffe4: 70 61 63 6b 65 74 20 62 65 67 69 6e 3d 27 ef bb [packet begin='..]
+      fff4: bf 27 20 69 64 3d 27 57 35 4d 30 4d 70 43 65 68 [.' id='W5M0MpCeh]
+     10004: 69 48 7a 72 65 53 7a 4e 54 63 7a 6b 63 39 64 27 [iHzreSzNTczkc9d']
+     10014: 3f 3e 0d 0a 3c 78 3a 78 6d 70 6d 65 74 61 20 78 [?>..<x:xmpmeta x]
+     10024: 6d 6c 6e 73 3a 78 3d 22 61 64 6f 62 65 3a 6e 73 [mlns:x="adobe:ns]
+      [snip 12172 bytes]
+  + [XMP directory, 12255 bytes]
+  | Rating = 0
+  | - Tag 'x:xmpmeta/rdf:RDF/rdf:Description/xmp:Rating'
+JPEG APP2 (134 bytes):
+     12fc4: 46 50 58 52 00 00 01 00 03 ff ff ff ff 00 2f 00 [FPXR........../.]
+     12fd4: 46 00 55 00 4a 00 49 00 46 00 49 00 4c 00 4d 00 [F.U.J.I.F.I.L.M.]
+     12fe4: 00 00 9b 5c 69 99 8f 83 6c 83 77 42 32 38 28 07 [...\i...l.wB28(.]
+     12ff4: 01 3f 00 00 00 25 00 2f 00 46 00 55 00 4a 00 49 [.?...%./.F.U.J.I]
+     13004: 00 46 00 49 00 4c 00 4d 00 2f 00 50 00 72 00 6f [.F.I.L.M./.P.r.o]
+     13014: 00 70 00 65 00 72 00 74 00 79 00 00 00 00 00 af [.p.e.r.t.y......]
+     13024: f1 00 2f 00 46 00 55 00 4a 00 49 00 46 00 49 00 [../.F.U.J.I.F.I.]
+      [snip 22 bytes]
+  + [Contents List directory with 3 entries]
+  |  0) Name: '/FUJIFILM' [storage]
+  |  1) Name: '/FUJIFILM/Property' [37 bytes]
+  |  2) Name: '/FUJIFILM/Preview' [45041 bytes]
+JPEG APP2 (50 bytes):
+     1304e: 46 50 58 52 00 00 02 00 01 00 00 00 00 01 01 00 [FPXR............]
+     1305e: 00 02 01 00 00 00 00 00 00 00 02 80 01 01 00 00 [................]
+     1306e: 00 00 00 00 01 e0 00 00 00 00 00 00 00 00 00 00 [................]
+     1307e: 00 00                                           [..]
+  + [FPXR stream 1, 37 bytes]
+  | PreviewInfo (SubDirectory) -->
+  | - Tag 'Property' (37 bytes):
+  |     0000: 01 01 00 00 02 01 00 00 00 00 00 00 00 02 80 01 [................]
+  |     0010: 01 00 00 00 00 00 00 01 e0 00 00 00 00 00 00 00 [................]
+  |     0020: 00 00 00 00 00                                  [.....]
+  | + [BinaryData directory, 37 bytes, Big-endian]
+  | | PreviewImageWidth = 640
+  | | - Tag 0x000d (2 bytes, int16u[1]):
+  | |     000d: 02 80                                           [..]
+  | | PreviewImageHeight = 480
+  | | - Tag 0x0017 (2 bytes, int16u[1]):
+  | |     0017: 01 e0                                           [..]
+JPEG APP2 (45054 bytes):
+     13084: 46 50 58 52 00 00 02 00 02 00 00 00 00 00 00 00 [FPXR............]
+     13094: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+     130a4: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+     130b4: 00 00 00 00 00 00 00 00 00 00 00 00 ff d8 ff c4 [................]
+     130c4: 01 a2 00 00 01 05 01 01 01 01 01 01 00 00 00 00 [................]
+     130d4: 00 00 00 00 01 02 03 04 05 06 07 08 09 0a 0b 10 [................]
+     130e4: 00 02 01 03 03 02 04 03 05 05 04 04 00 00 01 7d [...............}]
+      [snip 44942 bytes]
+  + [FPXR stream 2, 45041 bytes]
+  | PreviewImage = ......................................}.......!1A..Qa."q.2....#B...R[snip]
+  | - Tag 'Preview' (45041 bytes):
+  |     0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  |     0010: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 [................]
+  |     0020: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ff [................]
+  |     0030: d8 ff c4 01 a2 00 00 01 05 01 01 01 01 01 01 00 [................]
+  |     0040: 00 00 00 00 00 00 00 01 02 03 04 05 06 07 08 09 [................]
+  |     [snip 44961 bytes]
+JPEG DHT (416 bytes):
+     1e086: 00 00 01 05 01 01 01 01 01 01 00 00 00 00 00 00 [................]
+     1e096: 00 00 01 02 03 04 05 06 07 08 09 0a 0b 10 00 02 [................]
+     1e0a6: 01 03 03 02 04 03 05 05 04 04 00 00 01 7d 01 02 [.............}..]
+     1e0b6: 03 00 04 11 05 12 21 31 41 06 13 51 61 07 22 71 [......!1A..Qa."q]
+     1e0c6: 14 32 81 91 a1 08 23 42 b1 c1 15 52 d1 f0 24 33 [.2....#B...R..$3]
+     1e0d6: 62 72 82 09 0a 16 17 18 19 1a 25 26 27 28 29 2a [br........%&'()*]
+     1e0e6: 34 35 36 37 38 39 3a 43 44 45 46 47 48 49 4a 53 [456789:CDEFGHIJS]
+      [snip 304 bytes]
+JPEG DQT (130 bytes):
+     1e22a: 00 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 [................]
+     1e23a: 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 [................]
+     1e24a: 01 01 01 01 02 02 02 01 02 02 02 01 01 02 03 02 [................]
+     1e25a: 02 02 02 03 03 03 01 02 03 03 03 03 03 02 03 03 [................]
+     1e26a: 02 01 01 01 01 01 01 01 01 01 01 01 02 01 01 01 [................]
+     1e27a: 02 02 02 02 02 02 02 02 02 02 02 02 02 02 02 02 [................]
+     1e28a: 02 02 02 02 02 02 02 02 02 02 02 02 02 02 02 02 [................]
+      [snip 18 bytes]
+JPEG DRI (2 bytes):
+     1e2b0: 00 04                                           [..]
+JPEG SOF0 (15 bytes):
+     1e2b6: 08 14 20 1e 30 03 01 21 00 02 11 01 03 11 01    [.. .0..!.......]
+  ImageWidth = 7728
+  ImageHeight = 5152
+  EncodingProcess = 0
+  BitsPerSample = 8
+  ColorComponents = 3
+  YCbCrSubSampling = 2 1
+JPEG SOS
+JPEG EOI

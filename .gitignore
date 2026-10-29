@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# Secrets — App Store Connect API keys etc. never belong in git
+*.p8
+private_keys/
+.env
+
+# Local build output
+build/
