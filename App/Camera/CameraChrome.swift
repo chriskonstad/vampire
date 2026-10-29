@@ -8,6 +8,7 @@ import SwiftUI
 struct CameraStatusRow: View {
     let camera: CameraSessionModel
     @State private var showsLog = false
+    @State private var showsWiFi = false
 
     var body: some View {
         VStack(spacing: 6) {
@@ -25,6 +26,8 @@ struct CameraStatusRow: View {
                     Button("Connect") { camera.findAndConnect() }
                         .font(.caption).buttonStyle(.bordered)
                 }
+                Button { showsWiFi = true } label: { Image(systemName: "wifi.router") }
+                    .font(.caption)
                 Button { showsLog = true } label: { Image(systemName: "text.alignleft") }
                     .font(.caption)
             }
@@ -45,6 +48,24 @@ struct CameraStatusRow: View {
                 Text(summary).font(.caption2).foregroundStyle(.green)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+        .sheet(isPresented: $showsWiFi) {
+            // Camera Wi-Fi setup stays reachable once a session has photos.
+            NavigationStack {
+                VStack(spacing: 16) {
+                    CameraWiFiSetupRow(link: camera.link)
+                    Button { camera.findAndConnect(); showsWiFi = false } label: {
+                        Label("Find & Connect", systemImage: "dot.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(camera.isConnected || camera.isSearching)
+                    Spacer()
+                }
+                .padding()
+                .navigationTitle("Camera Wi-Fi")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDetents([.medium])
         }
         .sheet(isPresented: $showsLog) {
             NavigationStack {

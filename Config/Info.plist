@@ -8,7 +8,7 @@
 	<array>
 		<string>com.chriskonstad.vampire.import.*</string>
 	</array>
-	<key>NSAccessorySetupSupports</key>
+	<key>NSAccessorySetupKitSupports</key>
 	<array>
 		<string>WiFi</string>
 	</array>
