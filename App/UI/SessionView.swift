@@ -151,7 +151,7 @@ struct SessionView: View {
         let progress = model.indexingProgress
         return VStack(spacing: 6) {
             if model.isCameraSession {
-                CameraStatusRow(camera: model.camera)
+                CameraStatusRow(camera: model.camera, showsConnect: !model.items.isEmpty)
             }
             // Indexing progress: visible bar while the pass runs, gone when
             // done. Informational only — browsing is never gated on it.

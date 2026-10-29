@@ -3,12 +3,16 @@ import SwiftUI
 /// Camera-session chrome layered onto the shared session screen: link state,
 /// offline-cache coverage, import progress, and the connection log. Culling
 /// itself is the regular grid/pager.
+///
+/// One Connect per screen: the empty-session panel owns it; once the
+/// session has photos, the status row does.
 
 /// One-line link + cache + import status, above the verdict counts.
 struct CameraStatusRow: View {
     let camera: CameraSessionModel
+    /// False while the empty-session panel (with its own Connect) is shown.
+    var showsConnect = true
     @State private var showsLog = false
-    @State private var showsWiFi = false
 
     var body: some View {
         VStack(spacing: 6) {
@@ -16,18 +20,16 @@ struct CameraStatusRow: View {
                 Circle().fill(statusColor).frame(width: 8, height: 8)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(statusTitle).font(.caption.bold())
-                    Text("\(camera.cachedCount)/\(camera.photos.count) cached for offline culling")
-                        .font(.caption2).foregroundStyle(.secondary)
+                    Text(subtitle).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                 }
                 Spacer()
                 if camera.isSearching || camera.phase == .connecting {
                     ProgressView().controlSize(.small)
-                } else if !camera.isConnected {
+                } else if showsConnect, !camera.isConnected {
                     Button("Connect") { camera.findAndConnect() }
                         .font(.caption).buttonStyle(.bordered)
                 }
-                Button { showsWiFi = true } label: { Image(systemName: "wifi.router") }
-                    .font(.caption)
+                CameraNetworkMenu(camera: camera)
                 Button { showsLog = true } label: { Image(systemName: "text.alignleft") }
                     .font(.caption)
             }
@@ -49,30 +51,18 @@ struct CameraStatusRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .sheet(isPresented: $showsWiFi) {
-            // Camera Wi-Fi setup stays reachable once a session has photos.
-            NavigationStack {
-                VStack(spacing: 16) {
-                    CameraNetworkRow(link: camera.link)
-                    Button { camera.findAndConnect(); showsWiFi = false } label: {
-                        Label("Connect", systemImage: "dot.radiowaves.left.and.right")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(camera.isConnected || camera.isSearching)
-                    Spacer()
-                }
-                .padding()
-                .navigationTitle("Camera Wi-Fi")
-                .navigationBarTitleDisplayMode(.inline)
-            }
-            .presentationDetents([.medium])
-        }
         .sheet(isPresented: $showsLog) {
             NavigationStack {
                 CameraLogPanel(camera: camera).padding().navigationTitle("Connection log")
             }
             .presentationDetents([.medium, .large])
         }
+    }
+
+    private var subtitle: String {
+        // The empty-session panel already shows the problem; don't repeat it.
+        if showsConnect, !camera.isConnected, !camera.isSearching, let problem = camera.connectProblem { return problem }
+        return "\(camera.cachedCount)/\(camera.photos.count) cached for offline culling"
     }
 
     private var statusColor: Color {
@@ -84,25 +74,55 @@ struct CameraStatusRow: View {
     }
 
     private var statusTitle: String {
-        if camera.isSearching { return "Looking for the camera…" }
+        if camera.isSearching { return searchingTitle(camera) }
         switch camera.phase {
         case .connected(let name): return "Connected to \(name)"
         case .connecting: return "Connecting…"
         default:
+            if camera.photos.isEmpty && camera.cachedCount == 0 { return "Not connected" }
             return camera.isReconnecting ? "Offline — reconnecting, culling from cache" : "Offline — culling from cache"
         }
     }
 }
 
-/// Empty camera session: how to put the camera on Wi-Fi, one Connect button,
-/// manual IP as a fallback.
+/// "Joining DIRECT-…" while joining the camera's Wi-Fi, else "Looking…".
+@MainActor
+func searchingTitle(_ camera: CameraSessionModel) -> String {
+    if case .joining(let ssid) = camera.link.state { return "Joining \(ssid)…" }
+    if case .picking = camera.link.state { return "Choose your camera's Wi-Fi…" }
+    return "Looking for the camera…"
+}
+
+/// Camera Wi-Fi options: the saved network, searching the current Wi-Fi
+/// (camera on a shared network), forgetting the network.
+struct CameraNetworkMenu: View {
+    let camera: CameraSessionModel
+
+    var body: some View {
+        Menu {
+            if let ssid = camera.link.cameraSSID, camera.link.hasSavedCamera {
+                Section("Camera Wi-Fi") { Text(ssid) }
+            }
+            Button { camera.searchThisNetwork() } label: {
+                Label("Search This Wi-Fi Instead", systemImage: "magnifyingglass")
+            }
+            if camera.link.hasSavedCamera {
+                Button(role: .destructive) { camera.link.forget() } label: {
+                    Label("Forget Camera Wi-Fi", systemImage: "wifi.slash")
+                }
+            }
+        } label: {
+            Image(systemName: "wifi.router")
+        }
+        .font(.caption)
+        .disabled(camera.isSearching)
+    }
+}
+
+/// Empty camera session: what to set on the camera, the one Connect, and a
+/// single plain status line. The log lives in its sheet (bottom bar).
 struct CameraConnectPanel: View {
     @Bindable var camera: CameraSessionModel
-
-    private var searchingTitle: String {
-        if case .joining(let ssid) = camera.link.state { return "Joining \(ssid)…" }
-        return "Looking for the camera…"
-    }
 
     var body: some View {
         ScrollView {
@@ -114,7 +134,7 @@ struct CameraConnectPanel: View {
                     .font(.callout).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).padding(.horizontal)
                 if camera.isSearching {
-                    ProgressView(searchingTitle)
+                    ProgressView(searchingTitle(camera))
                 } else if case .connecting = camera.phase {
                     ProgressView("Connecting…")
                 } else {
@@ -124,7 +144,14 @@ struct CameraConnectPanel: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+                    if let problem = camera.connectProblem {
+                        Label(problem, systemImage: "exclamationmark.circle")
+                            .font(.callout).foregroundStyle(.orange)
+                            .multilineTextAlignment(.center).padding(.horizontal)
+                    }
                     CameraNetworkRow(link: camera.link)
+                    Button("Camera on your home Wi-Fi? Search this network") { camera.searchThisNetwork() }
+                        .font(.footnote)
                     DisclosureGroup("Enter IP manually") {
                         HStack {
                             TextField("Camera IP", text: $camera.cameraIP)
@@ -134,16 +161,27 @@ struct CameraConnectPanel: View {
                             Button("Connect") { camera.connect() }.buttonStyle(.bordered)
                         }
                     }
-                    .font(.callout)
+                    .font(.footnote)
                     .frame(maxWidth: 300)
                 }
-                if case .failed(let message) = camera.phase {
-                    Text(message).font(.caption).foregroundStyle(.red)
-                        .multilineTextAlignment(.center).padding(.horizontal)
-                }
-                if !camera.logLines.isEmpty { CameraLogPanel(camera: camera).padding(.horizontal) }
             }
             .padding()
+            .padding(.bottom, 200)  // clear of the session's bottom bar
+        }
+    }
+}
+
+/// The saved camera network, if any, with Forget.
+struct CameraNetworkRow: View {
+    let link: CameraLink
+
+    var body: some View {
+        if let ssid = link.cameraSSID, link.hasSavedCamera {
+            HStack(spacing: 8) {
+                Image(systemName: "wifi").foregroundStyle(.green)
+                Text(ssid).font(.caption).lineLimit(1)
+                Button("Forget", role: .destructive) { link.forget() }.font(.caption)
+            }
         }
     }
 }
@@ -173,32 +211,6 @@ struct CameraLogPanel: View {
             .frame(maxHeight: 320)
             .padding(8)
             .background(Color(white: 0.08), in: .rect(cornerRadius: 8))
-        }
-    }
-}
-
-/// The saved camera network (if any) with Forget, plus join status.
-/// Setup itself happens inside Connect.
-struct CameraNetworkRow: View {
-    let link: CameraLink
-
-    var body: some View {
-        VStack(spacing: 6) {
-            if let ssid = link.cameraSSID, link.hasSavedCamera {
-                HStack(spacing: 8) {
-                    Image(systemName: "wifi").foregroundStyle(.green)
-                    Text(ssid).font(.caption).lineLimit(1)
-                    Button("Forget", role: .destructive) { link.forget() }.font(.caption)
-                }
-            }
-            switch link.state {
-            case .joining(let ssid):
-                ProgressView("Joining \(ssid)…").font(.caption)
-            case .failed(let message):
-                Text(message).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
-            default:
-                EmptyView()
-            }
         }
     }
 }

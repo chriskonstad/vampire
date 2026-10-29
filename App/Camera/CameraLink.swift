@@ -16,12 +16,15 @@ import UIKit
 /// printers and TVs. Picks that don't look like a Sony camera are rejected
 /// and removed from AccessorySetupKit, with a hint on what to pick.
 ///
-/// Joins use a persistent `NEHotspotConfiguration`, not
-/// `joinAccessoryHotspot`: the latter forces joinOnce, and iOS drops a
-/// join-once network ~15s after the app backgrounds or the phone sleeps,
-/// which would kill background imports. (Persistent joins need the Hotspot
-/// Configuration entitlement; because the network was chosen in the
-/// AccessorySetupKit picker, iOS skips its own "join network?" prompt.)
+/// The picker is only used to *identify* the camera's network. Joining an
+/// accessory's network is restricted to `joinAccessoryHotspot`, which
+/// forces joinOnce — iOS drops a join-once network ~15s after the app
+/// backgrounds or the phone sleeps, killing background imports — and a
+/// persistent `NEHotspotConfiguration` for an accessory network fails with
+/// "system denied configuration of the accessory network" (seen on device).
+/// So once the SSID is known the accessory is released and the network is
+/// joined as an ordinary saved one (iOS asks "Join …?" once; afterwards it's
+/// a known network the phone rejoins on its own in the field).
 ///
 /// Wi-Fi Aware (iOS 26) would be smoother still, but it needs accessories
 /// that implement Wi-Fi Aware/NAN; current Sony bodies don't.
@@ -72,6 +75,13 @@ final class CameraLink {
     func joinSavedCameraIfNeeded() async -> Bool {
         guard let ssid = cameraSSID, let password = Keychain.password(for: ssid) else { return false }
         if await Self.currentSSID() == ssid { return true }
+        // An accessory registration (from a pick) makes iOS refuse the
+        // persistent join — release any first. Activation shows no UI.
+        let session = await activatedSession()
+        if !session.accessories.isEmpty {
+            for accessory in session.accessories { session.removeAccessory(accessory) { _ in } }
+            try? await Task.sleep(for: .milliseconds(500))
+        }
         log("joining saved camera Wi-Fi \(ssid)")
         return await join(ssid: ssid, password: password)
     }
@@ -110,6 +120,12 @@ final class CameraLink {
         }
         cameraSSID = nil
         state = .idle
+        releaseAccessories()
+    }
+
+    /// Drops every AccessorySetupKit accessory so the camera network is an
+    /// ordinary one we may configure persistently.
+    private func releaseAccessories() {
         for accessory in session?.accessories ?? [] {
             session?.removeAccessory(accessory) { _ in }
         }
@@ -140,11 +156,15 @@ final class CameraLink {
         let session = await activatedSession()
         // A previously picked accessory suppresses re-discovery; clear any
         // that isn't the saved camera (e.g. a wrongly picked printer).
-        for accessory in session.accessories where accessory.ssid != cameraSSID {
+        for accessory in session.accessories {
             session.removeAccessory(accessory) { _ in }
         }
         let descriptor = ASDiscoveryDescriptor()
-        descriptor.ssidPrefix = "DIRECT-"  // narrowed to Sony after the pick
+        if let known = cameraSSID {
+            descriptor.ssid = known        // exact: no printers in the list
+        } else {
+            descriptor.ssidPrefix = "DIRECT-"  // narrowed to Sony after the pick
+        }
         let item = ASPickerDisplayItem(name: "Sony camera Wi-Fi", productImage: Self.productImage, descriptor: descriptor)
         session.showPicker(for: [item]) { [weak self] error in
             guard let error else { return }
@@ -173,6 +193,7 @@ final class CameraLink {
             }
             log("camera Wi-Fi chosen: \(ssid)")
             cameraSSID = ssid
+            releaseAccessories()  // join it as a plain network, not an accessory's
             if let password = Keychain.password(for: ssid) {
                 Task { resolve(await join(ssid: ssid, password: password)) }
             } else {
@@ -207,11 +228,20 @@ final class CameraLink {
         if let error, !(error.domain == NEHotspotConfigurationErrorDomain
                          && error.code == NEHotspotConfigurationError.alreadyAssociated.rawValue) {
             log("joining \(ssid) failed: \(error.localizedDescription)")
-            if error.domain == NEHotspotConfigurationErrorDomain,
-               error.code == NEHotspotConfigurationError.invalidWPAPassphrase.rawValue {
+            let code = error.domain == NEHotspotConfigurationErrorDomain
+                ? NEHotspotConfigurationError(rawValue: error.code) : nil
+            switch code {
+            case .invalidWPAPassphrase?:
                 Keychain.deletePassword(for: ssid)
+                state = .failed("The camera's Wi-Fi password didn't work. Tap Connect to enter it again.")
+            case .systemDenied?:
+                releaseAccessories()
+                state = .failed("iOS wouldn't join the camera's Wi-Fi. Tap Connect to try again.")
+            case .userDenied?:
+                state = .failed("Joining the camera's Wi-Fi was declined.")
+            default:
+                state = .failed("Couldn't join the camera's Wi-Fi. Is the camera on, with Wi-Fi Direct?")
             }
-            state = .failed("Couldn't join \(ssid): \(error.localizedDescription)")
             return false
         }
         log("joined camera Wi-Fi \(ssid)")
