@@ -22,6 +22,7 @@ struct PagerView: View {
     /// Compact vertical = iPhone in landscape: chrome moves to side rails so
     /// the photo gets the full width.
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.displayScale) private var displayScale
     /// Programmatic burst scrolls go through scrollTo (animates properly);
     /// writing the scrollPosition binding directly teleports.
     @State private var burstScrollTarget: String?
@@ -55,13 +56,17 @@ struct PagerView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            if verticalSizeClass == .compact {
-                landscapeLayout
-            } else if geometry.size.width >= Self.expandedMinWidth {
-                expandedLayout
-            } else {
-                portraitLayout
+            Group {
+                if verticalSizeClass == .compact {
+                    landscapeLayout
+                } else if geometry.size.width >= Self.expandedMinWidth {
+                    expandedLayout
+                } else {
+                    portraitLayout
+                }
             }
+            .onAppear { viewportChanged(geometry.size) }
+            .onChange(of: geometry.size) { _, size in viewportChanged(size) }
         }
         .background(.black)
         .overlay {
@@ -275,6 +280,13 @@ struct PagerView: View {
             return member
         }
         return group.first
+    }
+
+    /// Folding/unfolding (iPhone Duo) or rotating changes the viewport:
+    /// size previews to it, and re-focus so frames in view upgrade.
+    private func viewportChanged(_ size: CGSize) {
+        loader?.updateViewport(size, scale: displayScale)
+        focusLoader()
     }
 
     private func focusLoader() {

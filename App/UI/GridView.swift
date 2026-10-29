@@ -70,7 +70,7 @@ final class GridViewController: UIViewController {
         let layout = collectionView.collectionViewLayout as! UICollectionViewFlowLayout
         let side = (view.bounds.width - (columns - 1) * 2) / columns
         layout.itemSize = CGSize(width: side, height: side)
-        let scale = UIScreen.main.scale
+        let scale = traitCollection.displayScale  // per-screen (Duo folds between two)
         thumbnailSize = CGSize(width: side * scale, height: side * scale)
     }
 

@@ -27,15 +27,26 @@ final class PagerImageLoader {
     /// Items whose cached image is the real preview, not a stand-in.
     @ObservationIgnored private var full: Set<String> = []
 
-    /// Screen-bound pixel size; anything bigger is wasted decode.
-    @ObservationIgnored private let targetSize: CGSize
+    /// Viewport-bound pixel size; anything bigger is wasted decode. Starts
+    /// at a typical large iPhone and follows the pager's real viewport via
+    /// `updateViewport` — on iPhone Duo the app moves between a 5.4" and a
+    /// 7.6" screen as it folds, so a size fixed at creation (the old
+    /// UIScreen.main read) would leave unfolded previews soft.
+    @ObservationIgnored private var targetSize = CGSize(width: 1320, height: 2868)
 
     init(provider: CullImageProvider) {
         self.provider = provider
-        let screen = UIScreen.main.bounds.size
-        let scale = UIScreen.main.scale
-        targetSize = CGSize(width: screen.width * scale, height: screen.height * scale)
         cache.countLimit = 9 // current ± a few neighbors; previews are screen-size
+    }
+
+    /// The pager's size in points and its display scale. Growing past what's
+    /// cached re-requests the frames in view at the new size.
+    func updateViewport(_ size: CGSize, scale: CGFloat) {
+        let pixels = CGSize(width: (size.width * scale).rounded(), height: (size.height * scale).rounded())
+        guard pixels.width > 0, pixels.height > 0, pixels != targetSize else { return }
+        let grew = pixels.width > targetSize.width || pixels.height > targetSize.height
+        targetSize = pixels
+        if grew { full.removeAll() }  // re-request in view at the sharper size
     }
 
     func cachedImage(for itemID: String) -> UIImage? {
