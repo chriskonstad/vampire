@@ -18,9 +18,10 @@ through a RAW shoot, keep only the immortals.
 - **Nothing is deleted until you say so.** Decisions live in an undoable
   local journal; library deletes happen once, batched, into Recently
   Deleted. Camera sessions never delete anything on the card.
-- **Wide-screen layout** for big canvases: the whole burst side by side
-  while you cull. Built for iPhone Duo unfolded (needs a build with the
-  iOS 27.1 SDK; with older SDKs the Duo letterboxes the app).
+- **Built for iPhone Duo.** Unfolded, the whole burst lines up beside the
+  frame you're judging, with larger face crops; folded, culling carries on
+  on the outer screen. (The layout keys off available width, so any wide
+  canvas gets it.)
 
 ## Culling straight off the camera (Wi-Fi)
 
@@ -64,7 +65,7 @@ protocol layer doesn't even define Sony's delete command.
 
 ## Build & test
 
-Requires Xcode 27+ (iOS 26 deployment target).
+Requires Xcode 27.1+ (iOS 27.1 SDK — needed for native iPhone Duo rendering; deployment target iOS 26).
 
 ```sh
 cd VampireCore && swift test          # pure logic: parsers, PTP codec, journal, store
@@ -123,6 +124,9 @@ path, metadata from file heads only, never delete on the camera, …).
   app's `Documents/` (`simctl addmedia` rejects RAW).
 - The simulator's network isn't typed Wi-Fi, so simulator builds drop the
   Wi-Fi interface pin for camera connections.
+- iPhone Duo: Xcode 27.1's Duo simulator boots folded; unfold it in Device
+  Hub. Capture each screen with `simctl io <udid> screenshot --display=1`
+  (outer, 1398×2034) or `--display=3` (inner, 2007×2853).
 
 ## Releasing (maintainers)
 

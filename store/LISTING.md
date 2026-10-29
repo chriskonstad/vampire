@@ -1,4 +1,4 @@
-# App Store listing (v1.1)
+# App Store listing (v1.2)
 
 App: "Vampire - The Photo Cullin App" (com.chriskonstad.vampire) — the name is
 a Twilight pun: **cull**ing + the **Cullen** family. Theme is elegant/immortal
@@ -34,11 +34,11 @@ tools/fake_a7rv.py, and since Vision can't run in the simulator, run the app's
 VisionAnalyzer on the Mac over the previews and write the results into the
 simulator's index so faces/scores are real, not drawn in.
 
-**iPhone Duo:** App Store Connect has an iPhone Duo slot (inner 2007×2853,
-outer 1398×2034); filling it shows an "optimized for iPhone Duo" badge. The
-app's wide layout targets it, but native Duo rendering needs the iOS 27.1 SDK
-(Xcode 27.1) — with 27.0 the Duo letterboxes the app. Don't claim Duo support
-until a 27.1-SDK build is verified.
+**iPhone Duo (1.2):** App Store Connect type `APP_IPHONE_DUO` (inner 2007×2853,
+outer 1398×2034) — filling it shows the "optimized for iPhone Duo" badge.
+store/duo-*.png: "Unfold the whole burst." (expanded pager), "Cull right off
+your camera." (inner grid), "Folded or unfolded." (outer screen). Build with
+the iOS 27.1 SDK or the Duo letterboxes the app.
 
 ## Still off-theme (needs a NEW binary build to fix)
 - App icon: currently the horror fanged-aperture with a blood drop. A
