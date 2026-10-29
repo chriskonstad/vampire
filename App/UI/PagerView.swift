@@ -40,6 +40,9 @@ struct PagerView: View {
     /// While zoomed into a photo, all paging is off: drags pan the photo
     /// (Photos behavior).
     @State private var isZoomedIn = false
+    /// Changes when the pager's container resizes; rebuilds the paged
+    /// TabView so it can't keep a stale page offset.
+    @State private var viewportKey = ""
 
     /// `startMemberID` lets a grid tap land mid-burst on the exact frame.
     init(startGroup: Int, startMemberID: String?, provider: CullImageProvider) {
@@ -142,18 +145,26 @@ struct PagerView: View {
         return 600
     }
 
-    /// Expanded: the photo stays as big as the regular layout's, and the
-    /// extra width becomes a side panel that shows what a phone has to hide
-    /// — the whole burst at once, bigger face crops, the running tally.
+    /// Expanded (iPhone Duo unfolded): the photo gets as much of the canvas
+    /// as possible. Information keeps its familiar place — faces and signals
+    /// above the photo, the burst filmstrip below — and the decision buttons
+    /// move to a narrow rail on the right, under the thumb (as in landscape),
+    /// which frees the bottom bar's height for the photo.
     private var expandedLayout: some View {
-        VStack(spacing: 0) {
-            header
-            SignalStripView(record: currentAsset.flatMap { model.index[$0.id] })
-            HStack(spacing: 0) {
-                pager
-                VStack(alignment: .leading, spacing: 14) {
+        // Every row of chrome above or below the photo costs it height (the
+        // binding dimension for landscape photos when unfolded in
+        // landscape), so: no header row — its controls top the rail — and
+        // faces share one row with the signal chips.
+        HStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    HStack(spacing: 4) {
+                        FaceStripView(assetID: currentAsset?.id, cropSize: 56)
+                            .fixedSize(horizontal: true, vertical: false)
+                        SignalStripView(record: currentAsset.flatMap { model.index[$0.id] })
+                    }
+                    .frame(height: 76)
+                    pager
                     if currentGroupItems.count > 1 {
-                        sidePanelLabel("Burst · \(currentGroupItems.count) frames")
                         BurstFilmstrip(
                             items: currentGroupItems,
                             currentID: currentAsset?.id,
@@ -161,36 +172,38 @@ struct PagerView: View {
                             revision: model.verdictRevision,
                             onSelect: { burstScrollTarget = $0 }
                         )
+                        .frame(height: 76)
+                        .padding(.top, 6)
                     }
-                    sidePanelLabel("Faces")
-                    FaceStripView(assetID: currentAsset?.id, axis: .vertical, cropSize: 72)
-                    Spacer(minLength: 0)
-                    tallyView
+                    positionBar
                 }
-                .padding(12)
-                .frame(width: 168)
-                .background(Color(white: 0.06))
-            }
-            positionBar
-            ratingBar
+                VStack(spacing: 10) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "chevron.down").frame(width: 44, height: 36)
+                    }
+                    counterView
+                    Button { showsAFOverlay.toggle() } label: {
+                        Image(systemName: showsAFOverlay ? "viewfinder" : "viewfinder.trianglebadge.exclamationmark")
+                            .frame(width: 44, height: 36)
+                    }
+                    tallyView
+                    rightRail
+                }
+                .foregroundStyle(.white)
+                .frame(width: 84)
+                .padding(.vertical, 8)
         }
-    }
-
-    private func sidePanelLabel(_ text: String) -> some View {
-        Text(text.uppercased())
-            .font(.caption2.bold())
-            .foregroundStyle(.secondary)
     }
 
     private var tallyView: some View {
         let counts = model.verdictCounts
         let decided = counts[.keep, default: 0] + counts[.reject, default: 0]
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(spacing: 3) {
             Label("\(counts[.keep, default: 0])", systemImage: "heart.fill").foregroundStyle(.green)
             Label("\(counts[.reject, default: 0])", systemImage: "xmark").foregroundStyle(.red)
-            Text("\(model.items.count - decided) to go").foregroundStyle(.secondary)
+            Text("\(model.items.count - decided) left").foregroundStyle(.secondary)
         }
-        .font(.callout.bold())
+        .font(.caption.bold())
         .monospacedDigit()
     }
 
@@ -285,6 +298,7 @@ struct PagerView: View {
     /// Folding/unfolding (iPhone Duo) or rotating changes the viewport:
     /// size previews to it, and re-focus so frames in view upgrade.
     private func viewportChanged(_ size: CGSize) {
+        viewportKey = "\(Int(size.width))x\(Int(size.height))"
         loader?.updateViewport(size, scale: displayScale)
         focusLoader()
     }
@@ -330,6 +344,11 @@ struct PagerView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .scrollDisabled(isZoomedIn)
+        // A paged TabView keeps its old scroll offset when its container
+        // resizes (rotation, iPhone Duo fold/unfold), leaving the page
+        // shifted sideways — the photo looked cropped. Rebuild it per
+        // viewport size; the selection binding restores the position.
+        .id(viewportKey)
     }
 
     @ViewBuilder
@@ -695,8 +714,9 @@ private struct PagerFrameView: View {
     }
 }
 
-/// Every frame of the current burst at once (expanded layout): verdict dot,
-/// best-frame star, current frame ringed. Tap to jump to a frame.
+/// Every frame of the current burst at once (expanded layout), as a strip
+/// below the photo: verdict dot, best-frame star, current frame ringed. Tap
+/// to jump to a frame.
 private struct BurstFilmstrip: View {
     @Environment(AppModel.self) private var model
     let items: [CullItem]
@@ -708,15 +728,21 @@ private struct BurstFilmstrip: View {
     @State private var thumbs: [String: UIImage] = [:]
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 8) {
-                ForEach(items) { item in
-                    Button { onSelect(item.id) } label: { cell(item) }
-                        .buttonStyle(.plain)
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(items) { item in
+                        Button { onSelect(item.id) } label: { cell(item) }
+                            .buttonStyle(.plain)
+                            .id(item.id)
+                    }
                 }
+                .padding(.horizontal, 10)
+            }
+            .onChange(of: currentID) { _, id in
+                if let id { withAnimation { proxy.scrollTo(id, anchor: .center) } }
             }
         }
-        .frame(maxHeight: 520)
         .task(id: "\(items.map(\.id))#\(model.imageRevision)") {
             for item in items {
                 model.imageProvider.requestThumbnail(for: item, targetSize: CGSize(width: 300, height: 300)) { image in
@@ -729,10 +755,10 @@ private struct BurstFilmstrip: View {
     private func cell(_ item: CullItem) -> some View {
         let _ = revision
         let verdict = model.verdict(for: item)
-        // Each cell takes its photo's own aspect, so portrait frames aren't
-        // cropped to a landscape tile (eyes/faces are what you compare).
+        // Each cell takes its photo's own aspect at a fixed height, so
+        // portrait frames aren't cropped to a landscape tile.
         let image = thumbs[item.id]
-        let aspect = image.map { $0.size.height / max($0.size.width, 1) } ?? (2.0 / 3.0)
+        let aspect = image.map { $0.size.width / max($0.size.height, 1) } ?? 1.5
         return ZStack {
             if let image {
                 Image(uiImage: image).resizable().aspectRatio(contentMode: .fill)
@@ -740,11 +766,11 @@ private struct BurstFilmstrip: View {
                 Color(white: 0.12)
             }
         }
-        .frame(width: 144, height: 144 * aspect)
+        .frame(width: 68 * aspect, height: 68)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .opacity(verdict == .reject ? 0.4 : 1)
         .overlay(RoundedRectangle(cornerRadius: 6)
-            .strokeBorder(.yellow, lineWidth: item.id == currentID ? 2.5 : 0))
+            .strokeBorder(.yellow, lineWidth: item.id == currentID ? 2 : 0))
         .overlay(alignment: .topTrailing) {
             if verdict == .keep || verdict == .reject {
                 Circle().fill(verdict == .keep ? Color.green : Color.red)
