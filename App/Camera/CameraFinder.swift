@@ -85,6 +85,11 @@ enum CameraFinder {
         }
     }
 
+    /// Quick single-host check (e.g. the last camera address on this Wi-Fi).
+    static func probe(_ host: String, port: UInt16 = 15740, timeout: Double = 1.5) async -> Bool {
+        await isOpen(host, port: port, timeout: timeout)
+    }
+
     /// TCP connect test to the PTP/IP port, pinned to Wi-Fi.
     private static func isOpen(_ host: String, port: UInt16, timeout: Double) async -> Bool {
         let params = NWParameters.tcp

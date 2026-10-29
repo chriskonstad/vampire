@@ -53,9 +53,9 @@ struct CameraStatusRow: View {
             // Camera Wi-Fi setup stays reachable once a session has photos.
             NavigationStack {
                 VStack(spacing: 16) {
-                    CameraWiFiSetupRow(link: camera.link)
+                    CameraNetworkRow(link: camera.link)
                     Button { camera.findAndConnect(); showsWiFi = false } label: {
-                        Label("Find & Connect", systemImage: "dot.radiowaves.left.and.right")
+                        Label("Connect", systemImage: "dot.radiowaves.left.and.right")
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(camera.isConnected || camera.isSearching)
@@ -94,10 +94,15 @@ struct CameraStatusRow: View {
     }
 }
 
-/// Empty camera session: how to put the camera on Wi-Fi, Find & Connect,
+/// Empty camera session: how to put the camera on Wi-Fi, one Connect button,
 /// manual IP as a fallback.
 struct CameraConnectPanel: View {
     @Bindable var camera: CameraSessionModel
+
+    private var searchingTitle: String {
+        if case .joining(let ssid) = camera.link.state { return "Joining \(ssid)…" }
+        return "Looking for the camera…"
+    }
 
     var body: some View {
         ScrollView {
@@ -105,19 +110,21 @@ struct CameraConnectPanel: View {
                 Image(systemName: "camera.badge.ellipsis").font(.system(size: 44)).foregroundStyle(.secondary)
                     .padding(.top, 40)
                 Text("Cull straight off your camera").font(.title3.bold())
-                Text("On the camera: MENU → Network → Cnct./Remote Sht. → Remote Shooting On. Join the camera's Wi-Fi in Settings (or put both on the same Wi-Fi). Accept the pairing prompt on the camera the first time.")
+                Text("On the camera: MENU → Network → Cnct./Remote Sht. → Remote Shooting On, with Wi-Fi Direct. Then tap Connect — the first time, pick your camera's Wi-Fi and enter the password it shows.")
                     .font(.callout).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).padding(.horizontal)
                 if camera.isSearching {
-                    ProgressView("Looking for the camera…")
+                    ProgressView(searchingTitle)
                 } else if case .connecting = camera.phase {
                     ProgressView("Connecting…")
                 } else {
                     Button { camera.findAndConnect() } label: {
-                        Label("Find & Connect", systemImage: "dot.radiowaves.left.and.right")
+                        Label("Connect", systemImage: "dot.radiowaves.left.and.right")
+                            .frame(minWidth: 180)
                     }
                     .buttonStyle(.borderedProminent)
-                    CameraWiFiSetupRow(link: camera.link)
+                    .controlSize(.large)
+                    CameraNetworkRow(link: camera.link)
                     DisclosureGroup("Enter IP manually") {
                         HStack {
                             TextField("Camera IP", text: $camera.cameraIP)
@@ -170,28 +177,19 @@ struct CameraLogPanel: View {
     }
 }
 
-/// One-tap camera Wi-Fi setup (AccessorySetupKit) or the saved network.
-struct CameraWiFiSetupRow: View {
+/// The saved camera network (if any) with Forget, plus join status.
+/// Setup itself happens inside Connect.
+struct CameraNetworkRow: View {
     let link: CameraLink
-    @State private var password = ""
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             if let ssid = link.cameraSSID, link.hasSavedCamera {
                 HStack(spacing: 8) {
                     Image(systemName: "wifi").foregroundStyle(.green)
-                    Text(ssid).font(.callout).lineLimit(1)
-                    Spacer()
+                    Text(ssid).font(.caption).lineLimit(1)
                     Button("Forget", role: .destructive) { link.forget() }.font(.caption)
                 }
-                .frame(maxWidth: 300)
-            } else {
-                Button { link.setUp() } label: {
-                    Label("Set Up Camera Wi-Fi", systemImage: "wifi.router")
-                }
-                .buttonStyle(.bordered)
-                Text("Pick the camera's Wi-Fi once; Vampire joins it for you after that.")
-                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
             switch link.state {
             case .joining(let ssid):
@@ -202,7 +200,17 @@ struct CameraWiFiSetupRow: View {
                 EmptyView()
             }
         }
-        .alert("Camera Wi-Fi password", isPresented: Binding(
+    }
+}
+
+/// The one-time camera Wi-Fi password prompt, shown whenever Connect's
+/// picker step needs it. Attach once per camera session screen.
+struct CameraPasswordPrompt: ViewModifier {
+    let link: CameraLink
+    @State private var password = ""
+
+    func body(content: Content) -> some View {
+        content.alert("Camera Wi-Fi password", isPresented: Binding(
             get: { if case .needsPassword = link.state { true } else { false } },
             set: { if !$0, case .needsPassword = link.state { link.cancelSetup() } }
         )) {
@@ -211,7 +219,7 @@ struct CameraWiFiSetupRow: View {
             Button("Cancel", role: .cancel) { link.cancelSetup(); password = "" }
         } message: {
             if case .needsPassword(let ssid) = link.state {
-                Text("Shown on the camera with its Wi-Fi Direct info. Saved in your Keychain for \(ssid).")
+                Text("Shown on the camera with its Wi-Fi Direct info. Saved in your Keychain for \(ssid) — you won't be asked again.")
             }
         }
     }

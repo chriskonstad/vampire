@@ -198,27 +198,46 @@ final class CameraSessionModel {
     /// Getting onto the camera's own Wi-Fi without Settings (AccessorySetupKit).
     @ObservationIgnored private(set) lazy var link = CameraLink(log: { [weak self] in self?.record($0) })
 
-    /// Scans the current Wi-Fi for the camera (no IP typing), then connects.
+    /// The one Connect: finds the camera however it can be reached, then
+    /// connects — no separate setup step, no Settings trip.
+    ///
+    /// - A camera network is saved: if the phone isn't on it and the last
+    ///   address doesn't answer on the current Wi-Fi, join it, then connect.
+    /// - None saved: look on the current Wi-Fi (the camera may be on the
+    ///   home network); if it isn't there and this came from a tap
+    ///   (`interactive`), show the camera Wi-Fi picker, join, connect.
+    ///
+    /// Background auto-reconnect passes `interactive: false` — it never
+    /// pops UI.
     @discardableResult
-    func findAndConnect() -> Task<Bool, Never> {
+    func findAndConnect(interactive: Bool = true) -> Task<Bool, Never> {
         isSearching = true
-        record("searching Wi-Fi for the camera…")
+        record("looking for the camera…")
         let preferred = cameraIP
         return Task {
-            var found = await CameraFinder.find(preferred: preferred, log: logSink)
-            if found == nil, link.hasSavedCamera {
-                // Not on the camera's network: join the saved one and look
-                // again (its gateway is the camera).
-                record("camera not on this Wi-Fi — joining \(link.cameraSSID ?? "camera Wi-Fi")")
-                if await link.joinIfConfigured() {
-                    try? await Task.sleep(for: .seconds(3))  // let DHCP settle
+            defer { isSearching = false }
+            var found: String?
+            if link.hasSavedCamera {
+                if await CameraFinder.probe(preferred) {
+                    found = preferred
+                } else if await link.joinSavedCameraIfNeeded() {
                     found = await CameraFinder.find(preferred: preferred, log: logSink)
                 }
             }
-            isSearching = false
+            if found == nil {
+                found = await CameraFinder.find(preferred: preferred, log: logSink)
+            }
+            if found == nil, interactive, !link.hasSavedCamera {
+                record("no camera on this Wi-Fi — showing the camera Wi-Fi picker")
+                if await link.pickAndJoin() {
+                    found = await CameraFinder.find(preferred: preferred, log: logSink)
+                }
+            }
             guard let found else {
-                record("no camera found on this Wi-Fi")
-                phase = .failed("No camera found on this Wi-Fi. Is Remote Shooting on, and is the phone on the camera's network?")
+                record("no camera found")
+                phase = .failed(link.hasSavedCamera
+                    ? "Couldn't reach the camera. Is it on, with Remote Shooting enabled?"
+                    : "No camera found. Turn on Remote Shooting with Wi-Fi Direct on the camera, then tap Connect.")
                 return false
             }
             record("found camera at \(found)")
@@ -306,7 +325,7 @@ final class CameraSessionModel {
                 if case .connecting = phase { continue }
                 // Every third miss, rescan: on home Wi-Fi the camera may come
                 // back on a different DHCP address.
-                let ok = failures % 3 == 2 ? await findAndConnect().value : await connect().value
+                let ok = failures % 3 == 2 ? await findAndConnect(interactive: false).value : await connect().value
                 if ok { record("camera is back") } else { failures += 1 }
             }
         }

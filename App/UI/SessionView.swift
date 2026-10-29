@@ -44,6 +44,7 @@ struct SessionView: View {
                 }
         }
         .preferredColorScheme(.dark)
+        .modifier(CameraPasswordPrompt(link: model.camera.link))
         #if DEBUG
         // Screenshot/demo hook: `-demo.pagerIndex N` opens the pager on the
         // Nth photo once the session has that many.

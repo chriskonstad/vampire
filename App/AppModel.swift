@@ -406,7 +406,9 @@ final class AppModel {
         if camera.isConnected {
             cameraListed(camera.photos)  // already connected: adopt the card now
         } else if camera.phase != .connecting {
-            camera.findAndConnect()
+            // Quietly: opening the session to cull offline (camera off)
+            // mustn't pop the camera Wi-Fi picker — that's for Connect taps.
+            camera.findAndConnect(interactive: false)
         }
     }
 
