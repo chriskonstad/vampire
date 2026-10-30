@@ -12,23 +12,48 @@ extension CameraPhoto {
     var indexID: String { "camera:\(filename)@\(createdUTCms)" }
 }
 
-/// On-disk session cache of upright cull previews in the temp directory.
-/// Process-lifetime by design: wiped on first use each launch, so it never
-/// accumulates — closing the app is the eviction policy. (Index records and
-/// decisions persist in the store; only pixels are re-fetched.)
+/// On-disk cache of each camera shot's upright cull preview and grid
+/// thumbnail, in Library/Caches: it survives relaunches and disconnects, so
+/// culling a card you've seen before never re-downloads pixels. Files are
+/// keyed by the shot's stable index ID; shots that leave the card have their
+/// files removed, and iOS may purge Caches under storage pressure (we just
+/// re-fetch).
 final class CameraFrameCache: Sendable {
     static let shared = CameraFrameCache()
 
     let directory: URL
 
     private init() {
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent("camera-cache", isDirectory: true)
-        try? FileManager.default.removeItem(at: directory)
+        directory = URL.cachesDirectory.appendingPathComponent("camera-cache", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // The old per-launch cache lived in tmp; drop it.
+        try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory
+            .appendingPathComponent("camera-cache", isDirectory: true))
     }
 
-    func previewURL(for photo: CameraPhoto) -> URL {
-        directory.appendingPathComponent("\(photo.filename)-\(photo.createdUTCms).jpg")
+    /// "camera:DSC05508.ARW@1793247396115" -> "DSC05508.ARW-1793247396115"
+    private func fileStem(forIndexID id: String) -> String {
+        String(id.dropFirst("camera:".count)).replacingOccurrences(of: "@", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+    }
+
+    func previewURL(forIndexID id: String) -> URL {
+        directory.appendingPathComponent(fileStem(forIndexID: id) + ".jpg")
+    }
+
+    func thumbnailURL(forIndexID id: String) -> URL {
+        directory.appendingPathComponent(fileStem(forIndexID: id) + ".thumb.jpg")
+    }
+
+    func previewURL(for photo: CameraPhoto) -> URL { previewURL(forIndexID: photo.indexID) }
+
+    func hasPreview(forIndexID id: String) -> Bool {
+        FileManager.default.fileExists(atPath: previewURL(forIndexID: id).path)
+    }
+
+    func removeFiles(forIndexID id: String) {
+        try? FileManager.default.removeItem(at: previewURL(forIndexID: id))
+        try? FileManager.default.removeItem(at: thumbnailURL(forIndexID: id))
     }
 
     struct Processed: Sendable {

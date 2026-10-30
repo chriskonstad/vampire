@@ -1,3 +1,4 @@
+import Network
 import SwiftUI
 import UIKit
 
@@ -48,7 +49,7 @@ final class CameraSessionModel {
     }
 
     var isConnected: Bool { if case .connected = phase { true } else { false } }
-    var cachedCount: Int { previews.count }
+    var cachedCount: Int { photos.filter { previewURL(forIndexID: $0.indexID) != nil }.count }
 
     // MARK: Hooks into the shared culling session (set by AppModel)
 
@@ -70,8 +71,26 @@ final class CameraSessionModel {
     }
 
     func photo(forIndexID id: String) -> CameraPhoto? { photosByIndexID[id] }
-    func thumbnail(forIndexID id: String) -> UIImage? { thumbnails[id] }
-    func previewURL(forIndexID id: String) -> URL? { previews[id] }
+    /// Grid thumbnail: memory, else the on-disk cache (works offline and
+    /// across relaunches).
+    func thumbnail(forIndexID id: String) -> UIImage? {
+        if let image = thumbnails[id] ?? thumbnailMemo.object(forKey: id as NSString) { return image }
+        guard let image = UIImage(contentsOfFile: cache.thumbnailURL(forIndexID: id).path) else { return nil }
+        thumbnailMemo.setObject(image, forKey: id as NSString)
+        return image
+    }
+
+    /// Upright cull preview: fetched this run, else the on-disk cache.
+    func previewURL(forIndexID id: String) -> URL? {
+        if let url = previews[id] ?? previewMemo[id] { return url }
+        guard cache.hasPreview(forIndexID: id) else { return nil }
+        let url = cache.previewURL(forIndexID: id)
+        previewMemo[id] = url
+        return url
+    }
+
+    @ObservationIgnored private let thumbnailMemo = NSCache<NSString, UIImage>()
+    @ObservationIgnored private var previewMemo: [String: URL] = [:]
 
     private var client: SonyCameraClient?
     /// Identifies the live client so a late drop signal from an old one
@@ -213,11 +232,14 @@ final class CameraSessionModel {
     ///   isn't a tap (session open / auto-reconnect never pop UI).
     @discardableResult
     func findAndConnect(interactive: Bool = true) -> Task<Bool, Never> {
+        // One flow at a time: a second trigger (tap, foreground, network
+        // change, auto-reconnect) joins the one already running.
+        if let connectFlow { return connectFlow }
         isSearching = true
         connectProblem = nil
         record("connecting to the camera…")
-        return Task {
-            defer { isSearching = false }
+        let flow = Task {
+            defer { isSearching = false; connectFlow = nil }
             var onCameraNetwork = false
             if link.hasSavedCamera {
                 onCameraNetwork = await link.joinSavedCameraIfNeeded()
@@ -226,9 +248,7 @@ final class CameraSessionModel {
                 onCameraNetwork = await link.pickAndJoin()
             }
             if onCameraNetwork {
-                // On Wi-Fi Direct the camera is the gateway; the finder
-                // tries that (and the last address) first.
-                return await finishConnect(found: await CameraFinder.find(preferred: cameraIP, log: logSink),
+                return await finishConnect(found: await findOnCameraNetwork(),
                                            notFound: "Joined the camera's Wi-Fi, but the camera didn't answer. Is Remote Shooting on?")
             }
             if !interactive, !link.hasSavedCamera {
@@ -239,6 +259,74 @@ final class CameraSessionModel {
                 ?? "Couldn't reach the camera's Wi-Fi. Is the camera on, with Remote Shooting set to Wi-Fi Direct?"
             phase = .failed(connectProblem ?? "")
             return false
+        }
+        connectFlow = flow
+        return flow
+    }
+
+    @ObservationIgnored private var connectFlow: Task<Bool, Never>?
+
+    /// Right after joining, the phone may still be getting its address and
+    /// the camera may take a few seconds to open PTP/IP: keep knocking on
+    /// the camera (Sony's Wi-Fi Direct gateway, or the last address) for
+    /// ~20s before a full scan — no second tap needed.
+    private func findOnCameraNetwork() async -> String? {
+        let candidates = Array(Set([cameraIP, "192.168.122.1"]))
+        for attempt in 1 ... 8 {
+            for host in candidates where await CameraFinder.probe(host, timeout: 2) { return host }
+            if attempt == 1 { record("waiting for the camera to answer on its Wi-Fi…") }
+            try? await Task.sleep(for: .seconds(1))
+        }
+        return await CameraFinder.find(preferred: cameraIP, log: logSink)
+    }
+
+    // MARK: - Auto-connect when the phone lands on the camera's Wi-Fi
+
+    /// Set while a camera session is open: joining the camera's Wi-Fi
+    /// (from here, Settings, or iOS auto-joining the saved network) connects
+    /// by itself.
+    var autoConnects = false {
+        didSet { if autoConnects { startWatchingWiFi() } }
+    }
+    @ObservationIgnored private var pathMonitor: NWPathMonitor?
+    @ObservationIgnored private var lastGateways: [String] = []
+
+    private func startWatchingWiFi() {
+        guard pathMonitor == nil else { return }
+        #if targetEnvironment(simulator)
+        let monitor = NWPathMonitor()
+        #else
+        let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
+        #endif
+        monitor.pathUpdateHandler = { [weak self] path in
+            let up = path.status == .satisfied
+            let gateways = path.gateways.compactMap { endpoint -> String? in
+                guard case .hostPort(.ipv4(let address), _) = endpoint else { return nil }
+                return "\(address)".split(separator: "%").first.map(String.init)
+            }
+            Task { @MainActor in self?.wifiChanged(up: up, gateways: gateways) }
+        }
+        monitor.start(queue: .global(qos: .utility))
+        pathMonitor = monitor
+    }
+
+    private func wifiChanged(up: Bool, gateways: [String]) {
+        defer { lastGateways = gateways }
+        guard autoConnects, up, gateways != lastGateways, !isConnected,
+              phase != .connecting, connectFlow == nil else { return }
+        Task {
+            // Sony's Wi-Fi Direct gateway, or the saved camera SSID.
+            let onCamera: Bool
+            if gateways.contains("192.168.122.1") || gateways.contains(cameraIP) {
+                onCamera = true
+            } else if let ssid = link.cameraSSID {
+                onCamera = await CameraLink.currentSSID() == ssid
+            } else {
+                onCamera = false
+            }
+            guard onCamera, autoConnects, !isConnected, connectFlow == nil else { return }
+            record("on the camera's Wi-Fi — connecting")
+            findAndConnect(interactive: false)
         }
     }
 
@@ -306,15 +394,27 @@ final class CameraSessionModel {
         photosByIndexID = Dictionary(photos.map { ($0.indexID, $0) }, uniquingKeysWith: { a, _ in a })
         for id in gone {
             thumbnails[id] = nil
-            if let url = previews.removeValue(forKey: id) { try? FileManager.default.removeItem(at: url) }
+            previews[id] = nil
+            previewMemo[id] = nil
+            thumbnailMemo.removeObject(forKey: id as NSString)
+            cache.removeFiles(forIndexID: id)
         }
         record("\(list.count) on card, \(fresh.count) new, \(gone.count) gone")
         onPhotosListed?(photos)
     }
 
-    /// Shots that left the card no longer need an imported marker.
-    func forgetImported(_ ids: some Sequence<String>) {
-        imported.subtract(ids)
+    /// Shots that left the card: drop their imported marker and cached
+    /// pixels. (The session knows these even after a relaunch, when this
+    /// model hasn't seen an earlier listing to diff against.)
+    func forgetShots(_ ids: some Sequence<String>) {
+        for id in ids {
+            imported.remove(id)
+            thumbnails[id] = nil
+            previews[id] = nil
+            previewMemo[id] = nil
+            thumbnailMemo.removeObject(forKey: id as NSString)
+            cache.removeFiles(forIndexID: id)
+        }
     }
 
     /// The connection died mid-operation: keep everything cached, drop to
@@ -375,11 +475,12 @@ final class CameraSessionModel {
         prefetchTask?.cancel()
         guard let client else { return }
         prefetchTask = Task {
-            for photo in photos where thumbnails[photo.indexID] == nil {
+            for photo in photos where thumbnail(forIndexID: photo.indexID) == nil {
                 guard !Task.isCancelled else { return }
                 do {
                     let data = try await client.thumbnail(for: photo)
                     if let image = UIImage(data: data) {
+                        try? data.write(to: cache.thumbnailURL(forIndexID: photo.indexID))
                         thumbnails[photo.indexID] = image
                         onImagesChanged?()
                     }
@@ -391,7 +492,7 @@ final class CameraSessionModel {
             }
             var failed = Set<String>()
             while !Task.isCancelled {
-                let needed = { (p: CameraPhoto) in self.previews[p.indexID] == nil && !failed.contains(p.indexID) }
+                let needed = { (p: CameraPhoto) in self.previewURL(forIndexID: p.indexID) == nil && !failed.contains(p.indexID) }
                 guard let next = priority.first(where: needed) ?? photos.first(where: needed) else { break }
                 do {
                     try await fetchFrame(next, client: client)

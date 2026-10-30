@@ -158,6 +158,7 @@ final class AppModel {
 
     /// Stops all session work. Indexing never runs while no session is open.
     func closeSession() {
+        camera.autoConnects = false
         indexer?.cancel()
         indexer = nil
         reclusterTask?.cancel()
@@ -403,6 +404,7 @@ final class AppModel {
     }
 
     private func cameraSessionOpened() {
+        camera.autoConnects = true
         if camera.isConnected {
             cameraListed(camera.photos)  // already connected: adopt the card now
         } else if camera.phase != .connecting {
@@ -454,7 +456,7 @@ final class AppModel {
                 try? store.removeAssets(ids, fromSession: session.id)
                 try? store.removeIntents(forAssets: ids, inSession: session.id)
                 try? store.deleteAssets(ids: ids)
-                camera.forgetImported(ids)
+                camera.forgetShots(ids)
                 for id in ids { index[id] = nil }
                 items.removeAll { gone.contains($0.id) }
                 intentLog = (try? store.makeIntentLog(forSession: session.id)) ?? IntentLog()

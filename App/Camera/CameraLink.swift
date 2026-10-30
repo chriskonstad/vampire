@@ -75,13 +75,6 @@ final class CameraLink {
     func joinSavedCameraIfNeeded() async -> Bool {
         guard let ssid = cameraSSID, let password = Keychain.password(for: ssid) else { return false }
         if await Self.currentSSID() == ssid { return true }
-        // An accessory registration (from a pick) makes iOS refuse the
-        // persistent join — release any first. Activation shows no UI.
-        let session = await activatedSession()
-        if !session.accessories.isEmpty {
-            for accessory in session.accessories { session.removeAccessory(accessory) { _ in } }
-            try? await Task.sleep(for: .milliseconds(500))
-        }
         log("joining saved camera Wi-Fi \(ssid)")
         return await join(ssid: ssid, password: password)
     }
@@ -154,10 +147,12 @@ final class CameraLink {
 
     private func presentPicker() async {
         let session = await activatedSession()
-        // A previously picked accessory suppresses re-discovery; clear any
-        // that isn't the saved camera (e.g. a wrongly picked printer).
-        for accessory in session.accessories {
-            session.removeAccessory(accessory) { _ in }
+        // Already registered from an earlier pick: use it, no picker (and
+        // no removal — each removal is a system confirmation).
+        if let known = session.accessories.first(where: { ($0.ssid).map(Self.isSonyCamera(ssid:)) ?? false }),
+           let ssid = known.ssid {
+            accessoryChosen(known, ssid: ssid)
+            return
         }
         let descriptor = ASDiscoveryDescriptor()
         if let known = cameraSSID {
@@ -176,6 +171,21 @@ final class CameraLink {
         }
     }
 
+    /// A Sony camera network was identified. Release the accessory once —
+    /// iOS only lets an accessory's network be joined join-once, which
+    /// background imports can't survive — then join it as a plain saved
+    /// network. (This is the one system confirmation in setup.)
+    private func accessoryChosen(_ accessory: ASAccessory, ssid: String) {
+        log("camera Wi-Fi identified: \(ssid)")
+        cameraSSID = ssid
+        session?.removeAccessory(accessory) { _ in }
+        if let password = Keychain.password(for: ssid) {
+            Task { resolve(await join(ssid: ssid, password: password)) }
+        } else {
+            state = .needsPassword(ssid: ssid)
+        }
+    }
+
     private func handle(_ event: ASAccessoryEvent) {
         switch event.eventType {
         case .activated:
@@ -191,14 +201,7 @@ final class CameraLink {
                 resolve(false)
                 return
             }
-            log("camera Wi-Fi chosen: \(ssid)")
-            cameraSSID = ssid
-            releaseAccessories()  // join it as a plain network, not an accessory's
-            if let password = Keychain.password(for: ssid) {
-                Task { resolve(await join(ssid: ssid, password: password)) }
-            } else {
-                state = .needsPassword(ssid: ssid)
-            }
+            accessoryChosen(accessory, ssid: ssid)
         case .pickerDidDismiss:
             if state == .picking { state = .idle; resolve(false) }
         case .invalidated:
@@ -235,7 +238,6 @@ final class CameraLink {
                 Keychain.deletePassword(for: ssid)
                 state = .failed("The camera's Wi-Fi password didn't work. Tap Connect to enter it again.")
             case .systemDenied?:
-                releaseAccessories()
                 state = .failed("iOS wouldn't join the camera's Wi-Fi. Tap Connect to try again.")
             case .userDenied?:
                 state = .failed("Joining the camera's Wi-Fi was declined.")
@@ -244,15 +246,19 @@ final class CameraLink {
             }
             return false
         }
+        // apply() returns before association + DHCP finish: wait until the
+        // phone is really on the camera's network (no fixed sleep).
+        for _ in 0 ..< 40 where await Self.currentSSID() != ssid {
+            try? await Task.sleep(for: .milliseconds(500))
+        }
         log("joined camera Wi-Fi \(ssid)")
         state = .joined(ssid: ssid)
-        try? await Task.sleep(for: .seconds(3))  // association + DHCP
         return true
     }
 
     /// The current Wi-Fi's SSID — readable because this app configured the
     /// camera network (Hotspot Configuration entitlement).
-    private static func currentSSID() async -> String? {
+    static func currentSSID() async -> String? {
         await withCheckedContinuation { cont in
             NEHotspotNetwork.fetchCurrent { cont.resume(returning: $0?.ssid) }
         }

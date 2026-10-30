@@ -10,6 +10,9 @@ import SwiftUI
 /// One-line link + cache + import status, above the verdict counts.
 struct CameraStatusRow: View {
     let camera: CameraSessionModel
+    /// The session's photos — known (and cached) even before the camera
+    /// lists its card, e.g. culling offline after a relaunch.
+    var itemIDs: [String] = []
     /// False while the empty-session panel (with its own Connect) is shown.
     var showsConnect = true
     @State private var showsLog = false
@@ -62,7 +65,9 @@ struct CameraStatusRow: View {
     private var subtitle: String {
         // The empty-session panel already shows the problem; don't repeat it.
         if showsConnect, !camera.isConnected, !camera.isSearching, let problem = camera.connectProblem { return problem }
-        return "\(camera.cachedCount)/\(camera.photos.count) cached for offline culling"
+        let ids = itemIDs.isEmpty ? camera.photos.map(\.indexID) : itemIDs
+        let cached = ids.filter { camera.previewURL(forIndexID: $0) != nil }.count
+        return "\(cached)/\(ids.count) cached for offline culling"
     }
 
     private var statusColor: Color {
@@ -79,7 +84,7 @@ struct CameraStatusRow: View {
         case .connected(let name): return "Connected to \(name)"
         case .connecting: return "Connecting…"
         default:
-            if camera.photos.isEmpty && camera.cachedCount == 0 { return "Not connected" }
+            if camera.photos.isEmpty && itemIDs.isEmpty { return "Not connected" }
             return camera.isReconnecting ? "Offline — reconnecting, culling from cache" : "Offline — culling from cache"
         }
     }
