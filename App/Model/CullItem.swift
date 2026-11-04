@@ -116,61 +116,114 @@ final class LibraryImageProvider: CullImageProvider {
 
 /// Camera-card images from the session cache. Frames not fetched yet answer
 /// nil; the model bumps `imageRevision` as frames land and views re-ask.
+///
+/// Nothing here touches the disk or decodes on the main thread: with a
+/// thousand-plus cached frames, main-thread file reads and lazy JPEG decodes
+/// at draw time were what made previews crawl and stick. Repeat requests for
+/// an image already loading share that load.
 @MainActor
 final class CameraImageProvider: CullImageProvider {
     private let camera: CameraSessionModel
     private let decoded = NSCache<NSString, UIImage>()
     private let thumbs = NSCache<NSString, UIImage>()
+    private var previewWaiters: [String: [(UIImage?, Bool) -> Void]] = [:]
+    private var thumbWaiters: [String: [(UIImage?) -> Void]] = [:]
+    /// Grid loads, newest first: while skimming, the cells on screen now
+    /// matter, not the hundreds scrolled past.
+    private var thumbQueue: [(key: String, work: @Sendable () -> UIImage?)] = []
+    private var thumbsRunning = 0
 
     init(camera: CameraSessionModel) {
         self.camera = camera
-        decoded.countLimit = 12
-        thumbs.countLimit = 600
+        decoded.countLimit = 16
+        thumbs.countLimit = 800
     }
 
     func requestThumbnail(for item: CullItem, targetSize: CGSize, _ handler: @escaping (UIImage?) -> Void) {
         // Sony's own thumbnail is 160×120 — soft in the grid. Once the
-        // 1616px preview is cached, downsample that instead.
-        let key = "thumb:\(item.id)" as NSString
-        if let image = thumbs.object(forKey: key) { return handler(image) }
-        handler(camera.thumbnail(forIndexID: item.id))
-        guard let url = camera.previewURL(forIndexID: item.id) else { return }
-        let side = max(targetSize.width, targetSize.height)
-        Task {
-            let image = await Task.detached(priority: .utility) {
-                (try? Data(contentsOf: url)).flatMap { Downsampler.downsample(data: $0, maxPixelSize: side) }
-            }.value
-            guard let image else { return }
-            self.thumbs.setObject(image, forKey: key)
-            handler(image)
+        // 1616px preview is cached, a grid-size copy is made from it once
+        // and kept on disk next to it.
+        let key = item.id
+        if let image = thumbs.object(forKey: key as NSString) { return handler(image) }
+        if let image = camera.memoryThumbnail(forIndexID: key) { handler(image) }
+        if thumbWaiters[key] != nil { thumbWaiters[key]!.append(handler); return }
+        let preview = camera.previewURL(forIndexID: key)
+        let sonyThumb = camera.hasThumbnail(forIndexID: key) ? CameraFrameCache.shared.thumbnailURL(forIndexID: key) : nil
+        guard preview != nil || sonyThumb != nil else { return }
+        thumbWaiters[key] = [handler]
+        let grid = CameraFrameCache.shared.gridURL(forIndexID: key)
+        thumbQueue.append((key, {
+            if let image = Downsampler.decode(url: grid, maxPixelSize: CameraFrameCache.gridPixelSize) { return image }
+            if let preview, let image = Downsampler.decode(url: preview, maxPixelSize: CameraFrameCache.gridPixelSize) {
+                try? image.jpegData(compressionQuality: 0.8)?.write(to: grid, options: .atomic)
+                return image
+            }
+            return sonyThumb.flatMap { Downsampler.decode(url: $0, maxPixelSize: 400) }
+        }))
+        if thumbQueue.count > 240 {
+            // Scrolled far past these; drop them (re-requested on return).
+            for dropped in thumbQueue.prefix(thumbQueue.count - 240) { thumbWaiters[dropped.key] = nil }
+            thumbQueue.removeFirst(thumbQueue.count - 240)
+        }
+        pumpThumbs()
+    }
+
+    private func pumpThumbs() {
+        while thumbsRunning < 3, let next = thumbQueue.popLast() {
+            thumbsRunning += 1
+            Task {
+                let image = await Task.detached(priority: .utility, operation: next.work).value
+                thumbsRunning -= 1
+                // Only the real (preview-made) copy is worth keeping; a
+                // Sony-thumb stand-in is replaced once the preview lands.
+                if let image, camera.previewURL(forIndexID: next.key) != nil {
+                    thumbs.setObject(image, forKey: next.key as NSString)
+                }
+                for handler in thumbWaiters.removeValue(forKey: next.key) ?? [] { handler(image) }
+                pumpThumbs()
+            }
         }
     }
 
     func requestPreview(for item: CullItem, targetSize: CGSize,
                         _ handler: @escaping (UIImage?, Bool) -> Void) -> (() -> Void)? {
-        if let image = decoded.object(forKey: item.id as NSString) {
+        let key = item.id
+        if let image = decoded.object(forKey: key as NSString) {
             handler(image, true)
             return nil
         }
-        guard let url = camera.previewURL(forIndexID: item.id) else {
+        guard let url = camera.previewURL(forIndexID: key) else {
             // Not cached yet: show the tiny thumbnail meanwhile, ask the
             // prefetcher to hurry, and let the revision bump re-request.
-            camera.prioritize(indexID: item.id)
-            handler(camera.thumbnail(forIndexID: item.id), true)
+            camera.prioritize(indexID: key)
+            handler(camera.memoryThumbnail(forIndexID: key) ?? thumbs.object(forKey: key as NSString), true)
             return nil
         }
-        let key = item.id as NSString
+        if previewWaiters[key] != nil { previewWaiters[key]!.append(handler); return nil }
+        previewWaiters[key] = [handler]
+        let side = max(targetSize.width, targetSize.height)
         Task {
-            let image = await Task.detached(priority: .userInitiated) { UIImage(contentsOfFile: url.path) }.value
-            if let image { self.decoded.setObject(image, forKey: key) }
-            handler(image, true)
+            // Fully decoded off the main thread (a lazily decoded UIImage
+            // would decode on first draw — on the main thread, mid-swipe).
+            let image = await Task.detached(priority: .userInitiated) {
+                Downsampler.decode(url: url, maxPixelSize: side)
+            }.value
+            if let image {
+                decoded.setObject(image, forKey: key as NSString)
+            } else {
+                camera.previewMissing(indexID: key)  // purged by iOS: re-fetch
+            }
+            for waiter in previewWaiters.removeValue(forKey: key) ?? [] { waiter(image, true) }
         }
         return nil
     }
 
     func startCaching(_ items: [CullItem], targetSize: CGSize) {}
     func stopCaching(_ items: [CullItem], targetSize: CGSize) {}
-    func stopCachingAll() { decoded.removeAllObjects(); thumbs.removeAllObjects() }
+    /// Kept on purpose: the caches are keyed by stable IDs, and a card
+    /// re-listing (every reconnect) mustn't throw away decoded images.
+    /// NSCache sheds them under memory pressure.
+    func stopCachingAll() {}
 
     func hasFullPreview(for item: CullItem) -> Bool { camera.previewURL(forIndexID: item.id) != nil }
 }

@@ -290,9 +290,14 @@ final class AppModel {
         for item in items {
             if let group = groupForItem[item.id] {
                 guard seenGroupIDs.insert(group.id).inserted else { continue }
-                let members = group.assetIDs
+                var members = group.assetIDs
                     .compactMap { itemByID[$0] }
                     .sorted { ($0.creationDate ?? .distantPast) > ($1.creationDate ?? .distantPast) }
+                // The frame we'd bet on leads its stack (and is what you see
+                // first); the rest stay in capture order behind it.
+                if let best = bestMemberID(in: members), let index = members.firstIndex(where: { $0.id == best }), index > 0 {
+                    members.insert(members.remove(at: index), at: 0)
+                }
                 result.append(members)
             } else {
                 result.append([item])
@@ -301,10 +306,36 @@ final class AppModel {
         groupedItems = result
     }
 
+    /// The burst frame we'd bet on — a hint, never a decision. Ranked:
+    /// nobody mid-blink, most faces, best face quality, aesthetic score.
+    /// Ties keep capture order, so with no signals yet nothing moves.
+    /// Signals stream in from the indexer, so this sharpens as it indexes.
+    func bestMemberID(in group: [CullItem]) -> String? {
+        func score(_ item: CullItem) -> (Int, Int, Double, Double) {
+            let record = index[item.id]
+            return ((record?.closedEyesCount ?? 0) == 0 ? 1 : 0,
+                    record?.faceCount ?? 0,
+                    record?.bestFaceQuality ?? 0,
+                    record?.aestheticScore ?? -1)
+        }
+        var best: (id: String, score: (Int, Int, Double, Double))?
+        for item in group {
+            let s = score(item)
+            if best == nil || s > best!.score { best = (item.id, s) }
+        }
+        return best?.id
+    }
+
     // MARK: - Culling
 
     func setVerdict(_ verdict: Verdict?, for item: CullItem) {
         intentLog.set(verdict, for: item.id)
+        refreshVerdictState()
+    }
+
+    /// Several decisions as one undo step (a whole burst at once).
+    func setVerdicts(_ changes: [(item: CullItem, verdict: Verdict?)]) {
+        intentLog.set(changes.map { (assetID: $0.item.id, verdict: $0.verdict) })
         refreshVerdictState()
     }
 

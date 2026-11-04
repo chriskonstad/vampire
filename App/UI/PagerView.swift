@@ -23,13 +23,14 @@ struct PagerView: View {
     /// the photo gets the full width.
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.displayScale) private var displayScale
-    /// Programmatic burst scrolls go through scrollTo (animates properly);
-    /// writing the scrollPosition binding directly teleports.
-    @State private var burstScrollTarget: String?
 
     @State private var currentGroup: Int
     /// Visible member per burst group (item id), driven by the
     /// vertical scroll position of each stack.
+    /// It is also each stack's scroll position: programmatic moves write it
+    /// (animated). A separate scrollTo lost to this binding — the stack
+    /// snapped back to the old frame while ratings moved on, so X/heart
+    /// looked stuck until you paged away and back.
     @State private var visibleMembers: [Int: String]
     /// Created in init, never in onAppear: pages built before the loader
     /// existed captured `nil` and — paged TabView content isn't rebuilt —
@@ -170,7 +171,7 @@ struct PagerView: View {
                             currentID: currentAsset?.id,
                             bestID: bestMemberID(in: currentGroupItems),
                             revision: model.verdictRevision,
-                            onSelect: { burstScrollTarget = $0 }
+                            onSelect: { scrollBurst(to: $0) }
                         )
                         .frame(height: 76)
                         .padding(.top, 6)
@@ -253,9 +254,12 @@ struct PagerView: View {
             undoButton(compact: true)
             Divider().frame(width: 28)
             Spacer(minLength: 0)
-            crownButton(compact: true)
-                .opacity(currentGroupItems.count > 1 ? 1 : 0)
-                .disabled(currentGroupItems.count <= 1)
+            Group {
+                rejectBurstButton(compact: true)
+                crownButton(compact: true)
+            }
+            .opacity(currentGroupItems.count > 1 ? 1 : 0)
+            .disabled(currentGroupItems.count <= 1)
             ratingButton(.reject, icon: "xmark", color: .red, compact: true)
             ratingButton(.keep, icon: "heart.fill", color: .green, compact: true)
         }
@@ -293,6 +297,11 @@ struct PagerView: View {
             return member
         }
         return group.first
+    }
+
+    /// Animates the visible burst to a frame; it counts as current at once.
+    private func scrollBurst(to id: String) {
+        withAnimation(.easeInOut(duration: 0.3)) { visibleMembers[currentGroup] = id }
     }
 
     /// Folding/unfolding (iPhone Duo) or rotating changes the viewport:
@@ -369,37 +378,27 @@ struct PagerView: View {
     /// scroll container under landscape safe-area insets, leaving a sliver
     /// of the next frame visible at the bottom ("tiled" photos).
     private func burstStack(group: [CullItem], groupIndex: Int) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView(.vertical) {
-                // Non-lazy on purpose: programmatic scrolls (rating
-                // auto-advance) animate smoothly only when the target frame
-                // is already laid out. Bursts are small; eager is cheap.
-                VStack(spacing: 0) {
-                    ForEach(group, id: \.id) { asset in
-                        frame(for: asset)
-                            .containerRelativeFrame([.horizontal, .vertical])
-                            .id(asset.id)
-                    }
+        ScrollView(.vertical) {
+            // Non-lazy on purpose: programmatic scrolls (rating
+            // auto-advance) animate smoothly only when the target frame
+            // is already laid out. Bursts are small; eager is cheap.
+            VStack(spacing: 0) {
+                ForEach(group, id: \.id) { asset in
+                    frame(for: asset)
+                        .containerRelativeFrame([.horizontal, .vertical])
+                        .id(asset.id)
                 }
-                .scrollTargetLayout()
             }
-            .scrollTargetBehavior(.paging)
-            .scrollPosition(id: memberBinding(for: groupIndex, in: group))
-            .scrollIndicators(.hidden)
-            .scrollDisabled(isZoomedIn)
-            // Without this, the scroll view keeps a bottom safe-area content
-            // inset in landscape (home indicator) and that band shows the top
-            // of the NEXT frame — the "tiled photos" bug.
-            .ignoresSafeArea(edges: .bottom)
-            .onChange(of: burstScrollTarget) { _, target in
-                guard let target,
-                      group.contains(where: { $0.id == target }) else { return }
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    proxy.scrollTo(target, anchor: .top)
-                }
-                burstScrollTarget = nil
-            }
+            .scrollTargetLayout()
         }
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: memberBinding(for: groupIndex, in: group))
+        .scrollIndicators(.hidden)
+        .scrollDisabled(isZoomedIn)
+        // Without this, the scroll view keeps a bottom safe-area content
+        // inset in landscape (home indicator) and that band shows the top
+        // of the NEXT frame — the "tiled photos" bug.
+        .ignoresSafeArea(edges: .bottom)
         .overlay(alignment: .top) { burstChip(group: group, groupIndex: groupIndex) }
         .overlay(alignment: .trailing) { burstDotRail(group: group, groupIndex: groupIndex) }
     }
@@ -506,7 +505,7 @@ struct PagerView: View {
     private var ratingBar: some View {
         let _ = model.verdictRevision
         // Undo lives on the LEFT: rating buttons stay under the right thumb.
-        return HStack(spacing: 16) {
+        return HStack(spacing: 10) {
             undoButton(compact: false)
 
             Divider().frame(height: 24)
@@ -514,12 +513,16 @@ struct PagerView: View {
             ratingButton(.reject, icon: "xmark", color: .red)
             ratingButton(.keep, icon: "heart.fill", color: .green)
 
-            // Burst shortcut: keep the visible frame, reject its siblings.
-            // The slot is always reserved so X/heart never shift between
-            // burst and single photos.
-            crownButton(compact: false)
-                .opacity(currentGroupItems.count > 1 ? 1 : 0)
-                .disabled(currentGroupItems.count <= 1)
+            // Burst shortcuts: keep the visible frame and reject its
+            // siblings; reject the whole burst (bar any keepers). The slots
+            // are always reserved so X/heart never shift between burst and
+            // single photos.
+            Group {
+                crownButton(compact: false)
+                rejectBurstButton(compact: false)
+            }
+            .opacity(currentGroupItems.count > 1 ? 1 : 0)
+            .disabled(currentGroupItems.count <= 1)
         }
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
@@ -540,6 +543,26 @@ struct PagerView: View {
                 .background(.white.opacity(model.canUndo ? 0.15 : 0.07), in: Capsule())
         }
         .disabled(!model.canUndo)
+    }
+
+    private func rejectBurstButton(compact: Bool) -> some View {
+        let keepsSome = currentGroupItems.contains { model.verdict(for: $0) == .keep }
+        return Button {
+            rejectBurst()
+        } label: {
+            Image(systemName: "square.stack.3d.down.right.fill")
+                .font(.title3.bold())
+                .foregroundStyle(.red)
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white, .red)
+                        .offset(x: 6, y: 5)
+                }
+                .frame(width: compact ? 56 : 52, height: 48)
+                .background(.red.opacity(0.15), in: Capsule())
+        }
+        .accessibilityLabel(keepsSome ? "Reject the rest of this burst" : "Reject this burst")
     }
 
     private func crownButton(compact: Bool) -> some View {
@@ -605,7 +628,7 @@ struct PagerView: View {
         if group.count > 1 {
             let position = memberPosition(group: group, groupIndex: currentGroup)
             if position + 1 < group.count {
-                burstScrollTarget = group[position + 1].id
+                scrollBurst(to: group[position + 1].id)
                 return
             }
         }
@@ -634,36 +657,27 @@ struct PagerView: View {
     /// of the burst, moves on.
     private func keepThisOne() {
         guard let current = currentAsset else { return }
-        for member in currentGroupItems where member.id != current.id {
-            model.setVerdict(.reject, for: member)
-        }
-        model.setVerdict(.keep, for: current)
+        let changes = currentGroupItems.map { (item: $0, verdict: Verdict?.some($0.id == current.id ? .keep : .reject)) }
+        model.setVerdicts(changes)  // one undo step
+        advanceToNextGroup()
+    }
+
+    /// Rejects every frame of the burst you haven't kept (all of them if
+    /// none are), as one undo step, and moves on.
+    private func rejectBurst() {
+        let changes = currentGroupItems
+            .filter { model.verdict(for: $0) != .keep }
+            .map { (item: $0, verdict: Verdict?.some(.reject)) }
+        model.setVerdicts(changes)
         advanceToNextGroup()
     }
 
     // MARK: - Best of burst
 
-    /// The frame we'd bet on — a hint, never a selection. Ranked: nobody
-    /// mid-blink, most faces, best face quality, aesthetic score, newest.
-    /// Signals stream in from the indexer, so this sharpens as it indexes.
+    /// The frame we'd bet on (a hint, never a selection). AppModel ranks it
+    /// and puts it first in its stack.
     private func bestMemberID(in group: [CullItem]) -> String? {
-        group.max { a, b in
-            let sa = bestScore(a), sb = bestScore(b)
-            if sa.noBlinks != sb.noBlinks { return !sa.noBlinks }
-            if sa.faces != sb.faces { return sa.faces < sb.faces }
-            if sa.quality != sb.quality { return sa.quality < sb.quality }
-            return sa.aesthetic < sb.aesthetic
-        }?.id
-    }
-
-    private func bestScore(_ asset: CullItem) -> (noBlinks: Bool, faces: Int, quality: Double, aesthetic: Double) {
-        let record = model.index[asset.id]
-        return (
-            (record?.closedEyesCount ?? 0) == 0,
-            record?.faceCount ?? 0,
-            record?.bestFaceQuality ?? 0,
-            record?.aestheticScore ?? -1
-        )
+        model.bestMemberID(in: group)
     }
 
     private func jump(toAssetID assetID: String) {
@@ -671,7 +685,7 @@ struct PagerView: View {
             group.contains { $0.id == assetID }
         }) else { return }
         if groupIndex == currentGroup {
-            burstScrollTarget = assetID // animate within the visible stack
+            scrollBurst(to: assetID) // animate within the visible stack
         } else {
             // Cross-group: seed the target stack's position, page over.
             visibleMembers[groupIndex] = assetID

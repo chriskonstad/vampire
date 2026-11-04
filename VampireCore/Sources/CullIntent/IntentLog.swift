@@ -26,12 +26,18 @@ public struct IntentRecord: Equatable, Codable, Sendable {
     /// the asset ends up with after the operation.
     public var verdict: Verdict?
     public var timestamp: Date
+    /// Shared by the `.set` records of one batch (e.g. "reject this burst"),
+    /// which undo and redo as a single step. Undo/redo records stay one per
+    /// asset, so replay needs no batch logic beyond the sets.
+    public var batchID: String?
 
-    public init(operation: Operation, assetID: String, verdict: Verdict?, timestamp: Date) {
+    public init(operation: Operation, assetID: String, verdict: Verdict?, timestamp: Date,
+                batchID: String? = nil) {
         self.operation = operation
         self.assetID = assetID
         self.verdict = verdict
         self.timestamp = timestamp
+        self.batchID = batchID
     }
 }
 
@@ -46,6 +52,7 @@ public final class IntentLog {
         let assetID: String
         let previousVerdict: Verdict?
         let newVerdict: Verdict?
+        let batchID: String?
     }
 
     private(set) public var verdicts: [String: Verdict] = [:]
@@ -65,7 +72,7 @@ public final class IntentLog {
         self.init(now: now)
         for record in records {
             switch record.operation {
-            case .set: applySet(record.verdict, for: record.assetID, journal: false)
+            case .set: applySet(record.verdict, for: record.assetID, batchID: record.batchID, journal: false)
             case .undo: applyUndo(journal: false)
             case .redo: applyRedo(journal: false)
             }
@@ -93,30 +100,51 @@ public final class IntentLog {
 
     /// Sets (or clears, with nil) the verdict for an asset.
     public func set(_ verdict: Verdict?, for assetID: String) {
-        applySet(verdict, for: assetID, journal: true)
+        applySet(verdict, for: assetID, batchID: nil, journal: true)
     }
 
+    /// Several decisions as one undo step ("reject this burst", "keep this
+    /// one, reject the rest"). No-op entries are skipped.
+    public func set(_ changes: [(assetID: String, verdict: Verdict?)]) {
+        let batchID = UUID().uuidString
+        for change in changes {
+            applySet(change.verdict, for: change.assetID, batchID: batchID, journal: true)
+        }
+    }
+
+    /// Undoes the last step — a whole batch if it was one. Returns the
+    /// affected asset (the batch's first) for the UI to bring back.
     @discardableResult
     public func undo() -> String? {
-        applyUndo(journal: true)
+        guard let batchID = undoStack.last?.batchID else { return applyUndo(journal: true) }
+        var assetID: String?
+        while undoStack.last?.batchID == batchID { assetID = applyUndo(journal: true) }
+        return assetID
     }
 
     @discardableResult
     public func redo() -> String? {
-        applyRedo(journal: true)
+        guard let batchID = redoStack.last?.batchID else { return applyRedo(journal: true) }
+        var first: String?
+        while redoStack.last?.batchID == batchID {
+            let assetID = applyRedo(journal: true)
+            if first == nil { first = assetID }
+        }
+        return first
     }
 
     // MARK: - Core
 
-    private func applySet(_ verdict: Verdict?, for assetID: String, journal: Bool) {
+    private func applySet(_ verdict: Verdict?, for assetID: String, batchID: String?, journal: Bool) {
         let previous = verdicts[assetID]
         guard previous != verdict else { return } // no-op sets don't pollute history
 
         store(verdict, for: assetID)
-        undoStack.append(Mutation(assetID: assetID, previousVerdict: previous, newVerdict: verdict))
+        undoStack.append(Mutation(assetID: assetID, previousVerdict: previous, newVerdict: verdict, batchID: batchID))
         redoStack.removeAll()
         if journal {
-            onAppend?(IntentRecord(operation: .set, assetID: assetID, verdict: verdict, timestamp: now()))
+            onAppend?(IntentRecord(operation: .set, assetID: assetID, verdict: verdict, timestamp: now(),
+                                   batchID: batchID))
         }
     }
 

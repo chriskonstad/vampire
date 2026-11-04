@@ -190,6 +190,17 @@ final class IndexStoreTests: XCTestCase {
         XCTAssertEqual(log2.verdict(for: "c"), .maybe)
     }
 
+    func testBatchedIntentsUndoAsOneStepAfterRelaunch() throws {
+        let session = try store.createSession(name: "Burst", assetIDs: ["a", "b", "c"])
+        let log1 = try store.makeIntentLog(forSession: session.id)
+        log1.set(.keep, for: "a")
+        log1.set([("b", .reject), ("c", .reject)])
+
+        let log2 = try store.makeIntentLog(forSession: session.id)
+        log2.undo()
+        XCTAssertEqual(log2.verdicts, ["a": .keep])
+    }
+
     func testDeleteSessionRemovesMembershipAndJournalOnly() throws {
         try store.upsert(record("a", indexed: true))
         let session = try store.createSession(name: "Gone", assetIDs: ["a"])

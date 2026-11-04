@@ -190,6 +190,7 @@ struct IntentRow: Codable, FetchableRecord, MutablePersistableRecord {
     var assetID: String
     var verdict: String?
     var timestamp: Date
+    var batchID: String?
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
         seq = inserted.rowID
@@ -202,6 +203,7 @@ struct IntentRow: Codable, FetchableRecord, MutablePersistableRecord {
         self.assetID = record.assetID
         self.verdict = record.verdict?.rawValue
         self.timestamp = record.timestamp
+        self.batchID = record.batchID
     }
 
     var intentRecord: IntentRecord? {
@@ -210,7 +212,8 @@ struct IntentRow: Codable, FetchableRecord, MutablePersistableRecord {
             operation: op,
             assetID: assetID,
             verdict: verdict.flatMap(Verdict.init(rawValue:)),
-            timestamp: timestamp
+            timestamp: timestamp,
+            batchID: batchID
         )
     }
 }

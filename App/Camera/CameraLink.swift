@@ -246,11 +246,9 @@ final class CameraLink {
             }
             return false
         }
-        // apply() returns before association + DHCP finish: wait until the
-        // phone is really on the camera's network (no fixed sleep).
-        for _ in 0 ..< 40 where await Self.currentSSID() != ssid {
-            try? await Task.sleep(for: .milliseconds(500))
-        }
+        // apply() returns before association + DHCP finish; the caller
+        // probes the camera until it answers. (Waiting on the current SSID
+        // instead never matched on device and cost a fixed ~20s per join.)
         log("joined camera Wi-Fi \(ssid)")
         state = .joined(ssid: ssid)
         return true

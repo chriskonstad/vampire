@@ -44,6 +44,58 @@ final class IntentLogTests: XCTestCase {
         XCTAssertFalse(log.canRedo)
     }
 
+    func testBatchUndoesAndRedoesAsOneStep() {
+        let log = IntentLog()
+        log.set(.keep, for: "x")
+        log.set(.keep, for: "b")
+        log.set([("a", .reject), ("b", .reject), ("c", .reject)])
+        XCTAssertEqual(log.counts, [.keep: 1, .reject: 3])
+
+        XCTAssertEqual(log.undo(), "a")
+        XCTAssertNil(log.verdict(for: "a"))
+        XCTAssertEqual(log.verdict(for: "b"), .keep)  // back to its pre-batch verdict
+        XCTAssertNil(log.verdict(for: "c"))
+        XCTAssertEqual(log.verdict(for: "x"), .keep)  // earlier single step untouched
+
+        XCTAssertEqual(log.redo(), "a")
+        XCTAssertEqual(log.counts, [.keep: 1, .reject: 3])
+        XCTAssertFalse(log.canRedo)
+
+        log.undo()
+        XCTAssertEqual(log.undo(), "b")  // next step is the single "keep b"
+        XCTAssertNil(log.verdict(for: "b"))
+    }
+
+    func testBatchSkipsNoOps() {
+        var appended: [IntentRecord] = []
+        let log = IntentLog()
+        log.set(.reject, for: "a")
+        log.onAppend = { appended.append($0) }
+        log.set([("a", .reject), ("b", .reject)])
+        XCTAssertEqual(appended.map(\.assetID), ["b"])
+        XCTAssertNotNil(appended.first?.batchID)
+    }
+
+    func testBatchReplayRestoresGroupedUndo() {
+        var journal: [IntentRecord] = []
+        let log = IntentLog()
+        log.onAppend = { journal.append($0) }
+        log.set(.keep, for: "x")
+        log.set([("a", .reject), ("b", .reject)])
+        log.set([("c", .reject), ("d", .reject)])
+        log.undo()  // journals one undo record per asset
+
+        let restored = IntentLog(replaying: journal)
+        XCTAssertEqual(restored.verdicts, log.verdicts)
+        XCTAssertEqual(restored.redo(), "c")
+        XCTAssertEqual(restored.verdict(for: "d"), .reject)
+        restored.undo()
+        restored.undo()  // the a/b batch, in one step
+        XCTAssertNil(restored.verdict(for: "a"))
+        XCTAssertNil(restored.verdict(for: "b"))
+        XCTAssertEqual(restored.verdict(for: "x"), .keep)
+    }
+
     func testNewSetClearsRedoStack() {
         let log = IntentLog()
         log.set(.keep, for: "a")

@@ -21,7 +21,9 @@ final class PagerImageLoader {
 
     @ObservationIgnored private let provider: CullImageProvider
     @ObservationIgnored private let cache = NSCache<NSString, UIImage>()
-    @ObservationIgnored private var inFlight: [String: (() -> Void)?] = [:]
+    /// Token tells a late completion apart from a newer request for the
+    /// same frame (some providers can't cancel).
+    @ObservationIgnored private var inFlight: [String: (token: UUID, cancel: (() -> Void)?)] = [:]
     @ObservationIgnored private var scheduler = RequestScheduler<String>()
     @ObservationIgnored private var itemsByID: [String: CullItem] = [:]
     /// Items whose cached image is the real preview, not a stand-in.
@@ -36,7 +38,7 @@ final class PagerImageLoader {
 
     init(provider: CullImageProvider) {
         self.provider = provider
-        cache.countLimit = 9 // current ± a few neighbors; previews are screen-size
+        cache.countLimit = 12 // current ± 4 neighbors + slack; previews are screen-size
     }
 
     /// The pager's size in points and its display scale. Growing past what's
@@ -53,18 +55,22 @@ final class PagerImageLoader {
         cache.object(forKey: itemID as NSString)
     }
 
-    /// Pager moved: current frame first, neighbors behind it, cancel the rest.
+    /// Pager moved (or new frames landed): current frame first, neighbors
+    /// behind it. Loads still inside the window keep going — cancelling and
+    /// restarting them on every refocus (each camera frame landing triggers
+    /// one) starved the frame on screen.
     func focus(on index: Int, in items: [CullItem]) {
         guard items.indices.contains(index) else { return }
-        for (_, cancel) in inFlight { cancel?() }
-        inFlight.removeAll()
-        scheduler.advanceGeneration()
-
+        let window = max(0, index - 4) ... min(items.count - 1, index + 4)
         itemsByID = [:]
-        let window = max(0, index - 3) ... min(items.count - 1, index + 3)
         for i in window {
             itemsByID[items[i].id] = items[i]
         }
+        for (id, entry) in inFlight where itemsByID[id] == nil {
+            entry.cancel?()
+            inFlight[id] = nil
+        }
+        scheduler.advanceGeneration()
 
         scheduler.focus(
             current: items[index].id,
@@ -78,7 +84,7 @@ final class PagerImageLoader {
     }
 
     private func pump() {
-        while inFlight.count < 2, let request = scheduler.dequeue() {
+        while inFlight.count < 3, let request = scheduler.dequeue() {
             start(request.key)
         }
     }
@@ -90,7 +96,8 @@ final class PagerImageLoader {
             pumpIfIdle()
             return
         }
-        inFlight[itemID] = .some(nil)
+        let token = UUID()
+        inFlight[itemID] = (token, nil)
         var finished = false
         let cancel = provider.requestPreview(for: item, targetSize: targetSize) { [weak self] image, isFinal in
             guard let self else { return }
@@ -101,11 +108,11 @@ final class PagerImageLoader {
             if isFinal {
                 finished = true
                 if self.provider.hasFullPreview(for: item) { self.full.insert(itemID) }
-                self.inFlight.removeValue(forKey: itemID)
+                if self.inFlight[itemID]?.token == token { self.inFlight.removeValue(forKey: itemID) }
                 self.pump()
             }
         }
-        if !finished { inFlight[itemID] = cancel }
+        if !finished, inFlight[itemID]?.token == token { inFlight[itemID] = (token, cancel) }
     }
 
     private func pumpIfIdle() {
@@ -117,6 +124,21 @@ final class PagerImageLoader {
 /// `maxPixelSize`, never the full 61MP (kCGImageSourceThumbnailMaxPixelSize).
 /// Unused by the scroll path; here for the explicit inspect action.
 enum Downsampler {
+    /// Decodes a file at most `maxPixelSize` on its long side, fully (not
+    /// lazily), so the result draws without further work. Call off-main.
+    static func decode(url: URL, maxPixelSize: CGFloat) -> UIImage? {
+        let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions) else { return nil }
+        let thumbOptions = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+        ] as CFDictionary
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions) else { return nil }
+        return UIImage(cgImage: cgImage)
+    }
+
     static func downsample(data: Data, maxPixelSize: CGFloat) -> UIImage? {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {

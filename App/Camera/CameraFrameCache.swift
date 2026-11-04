@@ -45,15 +45,36 @@ final class CameraFrameCache: Sendable {
         directory.appendingPathComponent(fileStem(forIndexID: id) + ".thumb.jpg")
     }
 
-    func previewURL(for photo: CameraPhoto) -> URL { previewURL(forIndexID: photo.indexID) }
-
-    func hasPreview(forIndexID id: String) -> Bool {
-        FileManager.default.fileExists(atPath: previewURL(forIndexID: id).path)
+    /// Grid-size copy of the preview, made once on first grid display.
+    func gridURL(forIndexID id: String) -> URL {
+        directory.appendingPathComponent(fileStem(forIndexID: id) + ".grid.jpg")
     }
+
+    static let gridPixelSize: CGFloat = 600
+
+    /// What's on disk, as index IDs — read once at launch so lookups never
+    /// touch the file system on the main thread.
+    func inventory() -> (previews: Set<String>, thumbnails: Set<String>) {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        var previews = Set<String>(), thumbnails = Set<String>()
+        for name in names {
+            // "DSC05508.ARW-1793247396115.thumb.jpg" -> "camera:DSC05508.ARW@1793247396115"
+            let isThumb = name.hasSuffix(".thumb.jpg")
+            guard isThumb || (name.hasSuffix(".jpg") && !name.hasSuffix(".grid.jpg")) else { continue }
+            let stem = name.dropLast(isThumb ? ".thumb.jpg".count : ".jpg".count)
+            guard let dash = stem.lastIndex(of: "-") else { continue }
+            let id = "camera:\(stem[..<dash])@\(stem[stem.index(after: dash)...])"
+            if isThumb { thumbnails.insert(id) } else { previews.insert(id) }
+        }
+        return (previews, thumbnails)
+    }
+
+    func previewURL(for photo: CameraPhoto) -> URL { previewURL(forIndexID: photo.indexID) }
 
     func removeFiles(forIndexID id: String) {
         try? FileManager.default.removeItem(at: previewURL(forIndexID: id))
         try? FileManager.default.removeItem(at: thumbnailURL(forIndexID: id))
+        try? FileManager.default.removeItem(at: gridURL(forIndexID: id))
     }
 
     struct Processed: Sendable {

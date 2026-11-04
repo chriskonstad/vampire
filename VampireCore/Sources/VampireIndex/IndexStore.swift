@@ -128,6 +128,14 @@ public final class IndexStore: @unchecked Sendable {
             }
         }
 
+        migrator.registerMigration("v6-intent-batches") { db in
+            // Decisions made together ("reject this burst") share a batch
+            // and undo as one step. Older rows: NULL, one step each.
+            try db.alter(table: "intent_log") { t in
+                t.add(column: "batchID", .text)
+            }
+        }
+
         return migrator
     }
 
