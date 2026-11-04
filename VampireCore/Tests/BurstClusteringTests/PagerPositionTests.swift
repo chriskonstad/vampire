@@ -64,7 +64,28 @@ final class PagerPositionTests: XCTestCase {
         // c becomes the newest frame of a burst led by "b1".
         let regrouped = CullOrder(photos: [("a", t0), ("b1", t0 + 10), ("c", t0 + 10.5)],
                                   bursts: [("b1", ["b1", "c"])], settings: .init(direction: .newestFirst, bestFirst: false))
-        position.reconcile(with: regrouped, keeping: "c")
+        position.reconcile(from: order, to: regrouped)
         XCTAssertEqual(position.stackID, "b1")
+    }
+
+    func testAnotherBurstReRankedStartsOverAtItsNewTop() {
+        // On photo "c"; the burst next door showed b2 when b1 became best.
+        var position = PagerPosition(photoID: "c", in: order, now: t0)
+        position.reportShown("b2", inStack: "b1", now: t0)
+        let reRanked = CullOrder(photos: [("a", t0), ("b1", t0 + 10), ("b2", t0 + 10.1), ("b3", t0 + 10.2), ("c", t0 + 20)],
+                                 bursts: [("b1", ["b1", "b2", "b3"])], settings: .init(direction: .newestFirst, bestFirst: true),
+                                 best: ["b1": "b1"])
+        XCTAssertEqual(position.reconcile(from: order, to: reRanked), ["b1"])
+        XCTAssertEqual(position.photoID(inStack: "b1", in: reRanked), "b1")  // its new top, not b2
+        XCTAssertEqual(position.currentPhotoID(in: reRanked), "c")
+    }
+
+    func testTheBurstOnScreenIsLeftAlone() {
+        var position = PagerPosition(photoID: "b3", in: order, now: t0)
+        position.reportShown("b2", inStack: "b1", now: t0)
+        let appended = CullOrder(photos: [("a", t0), ("b1", t0 + 10), ("b2", t0 + 10.1), ("b3", t0 + 10.2), ("b4", t0 + 10.3), ("c", t0 + 20)],
+                                 bursts: [("b1", ["b1", "b2", "b3", "b4"])], settings: .init(direction: .newestFirst, bestFirst: false))
+        XCTAssertEqual(position.reconcile(from: order, to: appended), [])
+        XCTAssertEqual(position.currentPhotoID(in: appended), "b2")
     }
 }

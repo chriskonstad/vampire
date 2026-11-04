@@ -37,6 +37,11 @@ struct PagerView: View {
     /// report what they show instead (`PagerPosition.reportShown`).
     @State private var burstScroll: BurstScroll?
 
+    /// Bursts re-ranked off screen (a new best frame moved to the top):
+    /// each scrolls back to its top, so entering it starts at the best
+    /// frame instead of wherever its scroll view had been left.
+    @State private var topResets: [String: UUID] = [:]
+
     private struct BurstScroll: Equatable {
         let stackID: String
         let photoID: String
@@ -92,8 +97,9 @@ struct PagerView: View {
             focusLoader()
         }
         .onChange(of: model.order) { old, new in
-            // New shots, re-clustering or a re-sort: stay on the same photo.
-            position.reconcile(with: new, keeping: position.currentPhotoID(in: old))
+            // New shots, re-clustering or a re-sort: stay on the same photo;
+            // bursts re-ranked off screen go back to their (new) top.
+            for stackID in position.reconcile(from: old, to: new) { topResets[stackID] = UUID() }
         }
         .onChange(of: model.imageRevision) { _, _ in
             // Camera frames landed in the cache: upgrade stand-ins in view.
@@ -452,6 +458,10 @@ struct PagerView: View {
                     if position.pendingPhotoID(inStack: stack.id) == target { proxy.scrollTo(target, anchor: .top) }
                 }
             }
+            .onChange(of: topResets[stack.id]) { _, reset in
+                guard reset != nil, let top = stack.memberIDs.first else { return }
+                proxy.scrollTo(top, anchor: .top)
+            }
             .onChange(of: burstScroll) { _, move in
                 guard let move, move.stackID == stack.id else { return }
                 if move.animated {
@@ -499,11 +509,11 @@ struct PagerView: View {
         let bestID = bestMemberID(in: members)
         return VStack(spacing: 5) {
             ForEach(stack.memberIDs.indices, id: \.self) { index in
-                if stack.memberIDs[index] == bestID, index != shown {
-                    // The frame we think is best — visible from anywhere in
-                    // the stack so it's worth scrolling to.
+                if stack.memberIDs[index] == bestID {
+                    // The frame we think is best — a star from anywhere in the
+                    // stack, and still a star (just bigger) while you're on it.
                     Image(systemName: "star.fill")
-                        .font(.system(size: 8))
+                        .font(.system(size: index == shown ? 14 : 8))
                         .foregroundStyle(.yellow)
                 } else {
                     Capsule()

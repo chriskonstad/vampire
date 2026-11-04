@@ -97,12 +97,27 @@ public struct PagerPosition: Equatable, Sendable {
 
     /// The order was rebuilt (new shots, re-clustering, re-sort): stay on
     /// the same photo even if its stack changed identity or position.
-    public mutating func reconcile(with order: CullOrder, keeping photoID: String?) {
+    /// Other stacks whose frame order changed (a new best frame moved to
+    /// the top) start over at their top — what they used to show is no
+    /// longer where it was. Returns those stacks so their views can scroll
+    /// back to the top too.
+    @discardableResult
+    public mutating func reconcile(from previous: CullOrder, to order: CullOrder) -> [String] {
+        let photoID = currentPhotoID(in: previous)
         if let photoID, let stack = order.stack(containing: photoID) {
             if stack.id != stackID { stackID = stack.id }
         } else if order.stackIndex(ofStack: stackID) == nil {
             stackID = order.stacks.first?.id ?? ""
         }
+        var reordered: [String] = []
+        for stack in order.stacks where stack.isBurst && stack.id != stackID {
+            guard let before = previous.stackIndex(ofStack: stack.id).map({ previous.stacks[$0].memberIDs }),
+                  before != stack.memberIDs else { continue }
+            reordered.append(stack.id)
+            shown[stack.id] = nil
+            if pending?.stackID == stack.id { pending = nil }
+        }
         shown = shown.filter { order.stackIndex(ofStack: $0.key) != nil }
+        return reordered
     }
 }
