@@ -81,6 +81,7 @@ struct PagerView: View {
         .onAppear {
             focusLoader()
         }
+        .onDisappear { model.pagerAnchorID = nil }
         .onChange(of: currentAsset?.id) { _, _ in
             focusLoader()
         }
@@ -313,10 +314,13 @@ struct PagerView: View {
     }
 
     private func focusLoader() {
-        guard let asset = currentAsset,
-              let flatIndex = model.items.firstIndex(where: { $0.id == asset.id })
-        else { return }
-        loader?.focus(on: flatIndex, in: model.items)
+        guard let asset = currentAsset else { return }
+        model.pagerAnchorID = asset.id
+        // Pager order, not capture order: inside a best-first burst the
+        // neighbors you'll swipe to are the stack's, not the clock's.
+        let order = model.pagerOrder
+        guard let index = order.firstIndex(where: { $0.id == asset.id }) else { return }
+        loader?.focus(on: index, in: order)
     }
 
     // MARK: - Header
@@ -382,9 +386,14 @@ struct PagerView: View {
             // Non-lazy on purpose: programmatic scrolls (rating
             // auto-advance) animate smoothly only when the target frame
             // is already laid out. Bursts are small; eager is cheap.
+            let position = memberPosition(group: group, groupIndex: groupIndex)
             VStack(spacing: 0) {
-                ForEach(group, id: \.id) { asset in
-                    frame(for: asset)
+                ForEach(Array(group.enumerated()), id: \.element.id) { index, asset in
+                    // Only frames you can reach soon watch the loader: with
+                    // all 24 of a long burst redrawing on every image that
+                    // landed, scrolling the stack stuttered.
+                    let isNear = groupIndex == currentGroup ? abs(index - position) <= 4 : index == position
+                    frame(for: asset, isNear: isNear)
                         .containerRelativeFrame([.horizontal, .vertical])
                         .id(asset.id)
                 }
@@ -465,9 +474,9 @@ struct PagerView: View {
         .allowsHitTesting(false)
     }
 
-    private func frame(for asset: CullItem) -> some View {
+    private func frame(for asset: CullItem, isNear: Bool = true) -> some View {
         PagerFrameView(
-            loader: loader,
+            loader: isNear ? loader : nil,
             itemID: asset.id,
             record: model.index[asset.id],
             showsAFOverlay: showsAFOverlay,
@@ -718,6 +727,8 @@ private struct PagerFrameView: View {
                     showsAFOverlay: showsAFOverlay,
                     onZoomChange: onZoomChange
                 )
+            } else if loader == nil {
+                Color.black  // far from view: not loading, nothing to animate
             } else {
                 ProgressView()
                     .tint(.white)

@@ -15,9 +15,11 @@ Speaks only what the app uses, with the byte layouts the real A7RV returned
 OpenSession, Sony SDIO connect, remote transfer 0x923B-0x923E. It refuses
 anything else — including every delete — with OperationNotSupported.
 """
-import json, os, socket, struct, sys, threading
+import json, os, socket, struct, sys, threading, time
 
 PORT = 15740
+# FAKE_SCREENNAIL_DELAY=0.6 simulates real over-the-air fetch times.
+SCREENNAIL_DELAY = float(os.environ.get("FAKE_SCREENNAIL_DELAY", "0"))
 OK, NOT_SUPPORTED, INVALID_PARAM = 0x2001, 0x2005, 0x201D
 
 def pkt(ptype, payload=b""):
@@ -119,6 +121,8 @@ def serve(conn, card, first_tid_conn):
             elif code == 0x923E:
                 key = "thumb" if params[2] == 1 else "screennail"
                 data = open(card.path(shot[key]), "rb").read()
+                if key == "screennail" and SCREENNAIL_DELAY:
+                    time.sleep(SCREENNAIL_DELAY)  # real Wi-Fi: ~0.5s per frame
             else:
                 offset = params[2] | params[3] << 32
                 size = params[4] & 0x7FFF_FFFF

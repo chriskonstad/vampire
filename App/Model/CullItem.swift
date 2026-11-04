@@ -47,6 +47,14 @@ protocol CullImageProvider: AnyObject {
     /// False while only a stand-in (e.g. a camera thumbnail) is available;
     /// the loader re-requests such items when `AppModel.imageRevision` bumps.
     func hasFullPreview(for item: CullItem) -> Bool
+
+    /// The pager's window, nearest first — sources that fetch over the
+    /// network (camera) get these first.
+    func prioritize(_ items: [CullItem])
+}
+
+extension CullImageProvider {
+    func prioritize(_ items: [CullItem]) {}
 }
 
 extension CullImageProvider {
@@ -193,9 +201,9 @@ final class CameraImageProvider: CullImageProvider {
             return nil
         }
         guard let url = camera.previewURL(forIndexID: key) else {
-            // Not cached yet: show the tiny thumbnail meanwhile, ask the
-            // prefetcher to hurry, and let the revision bump re-request.
-            camera.prioritize(indexID: key)
+            // Not cached yet: show the tiny thumbnail meanwhile (the pager
+            // has already asked the prefetcher for its window) and let the
+            // revision bump re-request.
             handler(camera.memoryThumbnail(forIndexID: key) ?? thumbs.object(forKey: key as NSString), true)
             return nil
         }
@@ -226,4 +234,6 @@ final class CameraImageProvider: CullImageProvider {
     func stopCachingAll() {}
 
     func hasFullPreview(for item: CullItem) -> Bool { camera.previewURL(forIndexID: item.id) != nil }
+
+    func prioritize(_ items: [CullItem]) { camera.prioritize(indexIDs: items.map(\.id)) }
 }

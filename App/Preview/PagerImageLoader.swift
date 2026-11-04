@@ -71,6 +71,7 @@ final class PagerImageLoader {
             inFlight[id] = nil
         }
         scheduler.advanceGeneration()
+        provider.prioritize(window.sorted { abs($0 - index) < abs($1 - index) }.map { items[$0] })
 
         scheduler.focus(
             current: items[index].id,

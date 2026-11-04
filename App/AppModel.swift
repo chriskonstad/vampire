@@ -285,6 +285,12 @@ final class AppModel {
             for id in group.assetIDs { groupForItem[id] = group }
         }
 
+        // The burst on screen in the pager keeps its order: re-ranking it as
+        // signals stream in moved frames under the user mid-scroll.
+        let pinnedOrder = pagerAnchorID.flatMap { anchor in
+            groupedItems.first { group in group.contains { $0.id == anchor } }
+        }?.map(\.id)
+
         var seenGroupIDs = Set<String>()
         var result: [[CullItem]] = []
         for item in items {
@@ -295,7 +301,13 @@ final class AppModel {
                     .sorted { ($0.creationDate ?? .distantPast) > ($1.creationDate ?? .distantPast) }
                 // The frame we'd bet on leads its stack (and is what you see
                 // first); the rest stay in capture order behind it.
-                if let best = bestMemberID(in: members), let index = members.firstIndex(where: { $0.id == best }), index > 0 {
+                if let pinnedOrder, let anchor = pagerAnchorID, group.assetIDs.contains(anchor) {
+                    let rank = Dictionary(pinnedOrder.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
+                    // Known frames as they were; new ones after, by time.
+                    members = members.filter { rank[$0.id] != nil }.sorted { rank[$0.id]! < rank[$1.id]! }
+                        + members.filter { rank[$0.id] == nil }
+                } else if let best = bestMemberID(in: members),
+                          let index = members.firstIndex(where: { $0.id == best }), index > 0 {
                     members.insert(members.remove(at: index), at: 0)
                 }
                 result.append(members)
@@ -304,7 +316,16 @@ final class AppModel {
             }
         }
         groupedItems = result
+        pagerOrder = result.flatMap { $0 }
     }
+
+    /// Every photo in pager order: groups in sequence, burst frames in
+    /// stack order. The pager preloads neighbors in this order.
+    private(set) var pagerOrder: [CullItem] = []
+
+    /// The photo the pager is showing (nil when closed); its burst keeps
+    /// its order across re-clustering.
+    @ObservationIgnored var pagerAnchorID: String?
 
     /// The burst frame we'd bet on — a hint, never a decision. Ranked:
     /// nobody mid-blink, most faces, best face quality, aesthetic score.

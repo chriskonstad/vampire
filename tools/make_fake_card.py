@@ -6,6 +6,8 @@ a 4-frame burst, a 3-frame portrait burst, and two separate frames.
 
 `--extra` adds two more shots "taken later" — rerun with/without it between
 connects to test new shots joining and removed shots dropping out.
+`--long-burst` adds a 24-frame 10fps burst (alternating scenes, so scrolling
+through it is visible) for testing long-burst paging and preview loading.
 Needs exiftool and sips (macOS).
 """
 import json, os, subprocess, sys
@@ -50,6 +52,10 @@ def main():
     if "--extra" in sys.argv:
         for i in range(2):
             shots.append(dict(runners, name=f"DSC0{n}.ARW", created_ms=base + 86_400_000 + i * 5_000)); n += 1
+    if "--long-burst" in sys.argv:
+        for i in range(24):
+            scene = runners if i % 2 == 0 else sunset
+            shots.append(dict(scene, name=f"DSC0{n}.ARW", created_ms=base + 7_200_000 + i * 100)); n += 1
     with open(f"{card}/card.json", "w") as f:
         json.dump(shots, f, indent=1)
     print(f"{len(shots)} shots in {card}/card.json")

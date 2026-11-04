@@ -582,10 +582,12 @@ final class CameraSessionModel {
     /// Photos the user is looking at; prefetch serves these first.
     private var priority: [CameraPhoto] = []
 
-    /// The pager is showing this shot: fetch it (and the next few) first.
-    func prioritize(indexID: String) {
-        guard let index = photos.firstIndex(where: { $0.indexID == indexID }) else { return }
-        priority = Array(photos[index ..< min(index + 4, photos.count)])
+    /// The pager's window, nearest first: fetch these before anything else.
+    /// (It used to take one ID plus the next few in *card* order — oldest
+    /// first, the opposite of paging through a burst — and each neighbor's
+    /// request overwrote the last, so the frame on screen waited.)
+    func prioritize(indexIDs: [String]) {
+        priority = indexIDs.compactMap { photosByIndexID[$0] }
     }
 
     private func fetchFrame(_ photo: CameraPhoto, client: SonyCameraClient) async throws {
