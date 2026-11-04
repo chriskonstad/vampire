@@ -124,7 +124,7 @@ struct PagerView: View {
             HStack(spacing: 12) {
                 Button("Keep Culling") { showsCompletion = false }
                     .buttonStyle(.bordered)
-                Button("Back to Grid") { dismiss() }
+                Button("Back to Grid") { close() }
                     .buttonStyle(.borderedProminent)
             }
         }
@@ -196,7 +196,7 @@ struct PagerView: View {
                     positionBar
                 }
                 VStack(spacing: 10) {
-                    Button { dismiss() } label: {
+                    Button { close() } label: {
                         Image(systemName: "chevron.down").frame(width: 44, height: 36)
                     }
                     counterView
@@ -246,7 +246,7 @@ struct PagerView: View {
     private var leftRail: some View {
         VStack(spacing: 12) {
             Button {
-                dismiss()
+                close()
             } label: {
                 Image(systemName: "chevron.down")
                     .frame(width: 44, height: 36)
@@ -332,6 +332,14 @@ struct PagerView: View {
         }
     }
 
+    /// Leaves the pager; the grid scrolls to (and rings) this photo. Set
+    /// before the dismissal animates, so the grid is already there as the
+    /// pager slides away.
+    private func close() {
+        if let id = currentAsset?.id { model.returnToGrid(at: id) }
+        dismiss()
+    }
+
     /// Swiped sideways onto a stack. Back on a burst you'd left mid-way,
     /// land on that frame (its page may have been rebuilt at the top — the
     /// page usually builds mid-swipe, before this runs, so tell it).
@@ -375,7 +383,7 @@ struct PagerView: View {
     private var header: some View {
         HStack {
             Button {
-                dismiss()
+                close()
             } label: {
                 Image(systemName: "chevron.down")
             }

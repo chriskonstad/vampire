@@ -24,6 +24,7 @@ struct GridView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ controller: GridViewController, context: Context) {
         controller.reload(items: model.orderedItems, revision: revision, imageRevision: imageRevision)
+        if let target = model.gridReturn { controller.reveal(target) }
     }
 }
 
@@ -36,6 +37,10 @@ final class GridViewController: UIViewController {
     private var lastImageRevision = -1
     private var collectionView: UICollectionView!
     private var thumbnailSize = CGSize(width: 200, height: 200)
+    /// The photo you came back from in the pager: ringed until you open
+    /// another.
+    private var returnedID: String?
+    private var lastReturn: UUID?
 
     init(model: AppModel, onTap: @escaping (Int) -> Void) {
         self.model = model
@@ -72,6 +77,31 @@ final class GridViewController: UIViewController {
         layout.itemSize = CGSize(width: side, height: side)
         let scale = traitCollection.displayScale  // per-screen (Duo folds between two)
         thumbnailSize = CGSize(width: side * scale, height: side * scale)
+    }
+
+    /// Back from the pager: center the photo you were on and ring it.
+    func reveal(_ target: AppModel.GridReturn) {
+        guard target.token != lastReturn, let collectionView,
+              let index = items.firstIndex(where: { $0.id == target.photoID }) else { return }
+        lastReturn = target.token
+        let previous = returnedID
+        returnedID = target.photoID
+        for indexPath in collectionView.indexPathsForVisibleItems {
+            if let cell = collectionView.cellForItem(at: indexPath) as? ThumbCell,
+               [previous, returnedID].contains(cell.representedAssetID) {
+                cell.isReturnedTo = cell.representedAssetID == returnedID
+            }
+        }
+        let indexPath = IndexPath(item: index, section: 0)
+        collectionView.layoutIfNeeded()
+        collectionView.scrollToItem(at: indexPath, at: .centeredVertically, animated: false)
+        collectionView.layoutIfNeeded()
+        // Pulse once the pager has slid away, so the eye finds it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+            guard let cell = self?.collectionView.cellForItem(at: indexPath) as? ThumbCell,
+                  cell.representedAssetID == target.photoID else { return }
+            cell.pulse()
+        }
     }
 
     func reload(items: [CullItem], revision: Int, imageRevision: Int) {
@@ -132,6 +162,7 @@ extension GridViewController: UICollectionViewDataSource, UICollectionViewDelega
         ) as! ThumbCell
         let item = items[indexPath.item]
         cell.representedAssetID = item.id
+        cell.isReturnedTo = item.id == returnedID
         configureBadges(cell, item: item)
         loadImage(into: cell, item: item)
         return cell
@@ -139,6 +170,15 @@ extension GridViewController: UICollectionViewDataSource, UICollectionViewDelega
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         onTap(indexPath.item)
+    }
+
+    /// The ring is applied as each cell comes on screen: cells configured
+    /// ahead of time (prefetch, or while the pager covered the grid)
+    /// predate the return and would miss it.
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell,
+                        forItemAt indexPath: IndexPath) {
+        guard let cell = cell as? ThumbCell, items.indices.contains(indexPath.item) else { return }
+        cell.isReturnedTo = items[indexPath.item].id == returnedID
     }
 }
 
@@ -193,6 +233,25 @@ final class ThumbCell: UICollectionViewCell {
         }
     }
     var isBurstLeader = false { didSet { burstBadge.isHidden = !isBurstLeader } }
+    /// The photo you just came back from in the pager: a bold ring.
+    var isReturnedTo = false { didSet { returnRing.isHidden = !isReturnedTo } }
+    private let returnRing = UIView()
+
+    /// A quick grow-and-settle so the ringed photo catches the eye.
+    func pulse() {
+        guard isReturnedTo else { return }
+        layer.zPosition = 1  // grow over the neighbors, not under them
+        UIView.animate(withDuration: 0.18, delay: 0, options: [.curveEaseOut]) {
+            self.transform = CGAffineTransform(scaleX: 1.12, y: 1.12)
+        } completion: { _ in
+            UIView.animate(withDuration: 0.45, delay: 0, usingSpringWithDamping: 0.55,
+                           initialSpringVelocity: 0, options: []) {
+                self.transform = .identity
+            } completion: { _ in
+                self.layer.zPosition = 0
+            }
+        }
+    }
 
     /// Aesthetic 0–100; tiered color so quality skims at a glance.
     var score: Int? {
@@ -238,6 +297,14 @@ final class ThumbCell: UICollectionViewCell {
         [afBadge, faceBadge, burstBadge].forEach(badgeStack.addArrangedSubview)
         badgeStack.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(badgeStack)
+
+        returnRing.frame = contentView.bounds
+        returnRing.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        returnRing.layer.borderColor = UIColor.systemYellow.cgColor
+        returnRing.layer.borderWidth = 4
+        returnRing.isUserInteractionEnabled = false
+        returnRing.isHidden = true
+        contentView.addSubview(returnRing)
 
         verdictDot.translatesAutoresizingMaskIntoConstraints = false
         verdictDot.layer.cornerRadius = 6
@@ -298,6 +365,9 @@ final class ThumbCell: UICollectionViewCell {
         showsAFBadge = false
         faceCount = 0
         isBurstLeader = false
+        isReturnedTo = false
+        transform = .identity
+        layer.zPosition = 0
         score = nil
         warnsClosedEyes = false
         warnsExposure = false

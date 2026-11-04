@@ -319,6 +319,17 @@ final class AppModel {
     /// its order across re-clustering.
     @ObservationIgnored var pagerAnchorID: String?
 
+    /// Where the grid should land when the pager closes: the photo you were
+    /// last on, scrolled into view and ringed. `token` makes each return an
+    /// event, even to the same photo.
+    struct GridReturn: Equatable {
+        let photoID: String
+        let token = UUID()
+    }
+    private(set) var gridReturn: GridReturn?
+
+    func returnToGrid(at photoID: String) { gridReturn = GridReturn(photoID: photoID) }
+
     /// The burst frame we'd bet on — a hint, never a decision. Ranked:
     /// nobody mid-blink, most faces, best face quality, aesthetic score.
     /// Nil on a tie for the top (e.g. no signals yet), so nothing moves.
