@@ -1,5 +1,6 @@
 import SwiftUI
 
+import BurstClustering
 import CullIntent
 import VampireIndex
 import SonyMakerNotes
@@ -24,14 +25,24 @@ struct PagerView: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.displayScale) private var displayScale
 
-    @State private var currentGroup: Int
-    /// Visible member per burst group (item id), driven by the
-    /// vertical scroll position of each stack.
-    /// It is also each stack's scroll position: programmatic moves write it
-    /// (animated). A separate scrollTo lost to this binding — the stack
-    /// snapped back to the old frame while ratings moved on, so X/heart
-    /// looked stuck until you paged away and back.
-    @State private var visibleMembers: [Int: String]
+    /// Where we are — the one source of truth for the photo on screen.
+    /// Order comes from `model.order`; the counter, burst indicator,
+    /// ratings and preloading all derive from this.
+    @State private var position: PagerPosition
+    /// A scroll for one burst stack, carried out by that stack's
+    /// ScrollViewReader. Stacks have no position *binding* on purpose: any
+    /// write to one teleported the stack (screen recordings showed a
+    /// one-frame jump, with or without withAnimation/ScrollPosition), and
+    /// an animated scrollTo lost to it (the stack snapped back). Stacks
+    /// report what they show instead (`PagerPosition.reportShown`).
+    @State private var burstScroll: BurstScroll?
+
+    private struct BurstScroll: Equatable {
+        let stackID: String
+        let photoID: String
+        let animated: Bool
+        let token = UUID()
+    }
     /// Created in init, never in onAppear: pages built before the loader
     /// existed captured `nil` and — paged TabView content isn't rebuilt —
     /// never observed it, so frames sat on the spinner until any tap.
@@ -45,17 +56,12 @@ struct PagerView: View {
     /// TabView so it can't keep a stale page offset.
     @State private var viewportKey = ""
 
-    /// `startMemberID` lets a grid tap land mid-burst on the exact frame.
-    init(startGroup: Int, startMemberID: String?, provider: CullImageProvider) {
+    /// Opens on a photo — a grid tap lands mid-burst on the exact frame.
+    init(startPhotoID: String?, order: CullOrder, provider: CullImageProvider) {
         _loader = State(initialValue: PagerImageLoader(provider: provider))
         // Must be State initial values: paged TabView ignores a selection
         // assigned in onAppear.
-        _currentGroup = State(initialValue: startGroup)
-        var members: [Int: String] = [:]
-        if let startMemberID {
-            members[startGroup] = startMemberID
-        }
-        _visibleMembers = State(initialValue: members)
+        _position = State(initialValue: PagerPosition(photoID: startPhotoID, in: order))
     }
 
     var body: some View {
@@ -84,6 +90,10 @@ struct PagerView: View {
         .onDisappear { model.pagerAnchorID = nil }
         .onChange(of: currentAsset?.id) { _, _ in
             focusLoader()
+        }
+        .onChange(of: model.order) { old, new in
+            // New shots, re-clustering or a re-sort: stay on the same photo.
+            position.reconcile(with: new, keeping: position.currentPhotoID(in: old))
         }
         .onChange(of: model.imageRevision) { _, _ in
             // Camera frames landed in the cache: upgrade stand-ins in view.
@@ -166,13 +176,13 @@ struct PagerView: View {
                     }
                     .frame(height: 76)
                     pager
-                    if currentGroupItems.count > 1 {
+                    if currentStackItems.count > 1 {
                         BurstFilmstrip(
-                            items: currentGroupItems,
+                            items: currentStackItems,
                             currentID: currentAsset?.id,
-                            bestID: bestMemberID(in: currentGroupItems),
+                            bestID: bestMemberID(in: currentStackItems),
                             revision: model.verdictRevision,
-                            onSelect: { scrollBurst(to: $0) }
+                            onSelect: { go(to: $0) }
                         )
                         .frame(height: 76)
                         .padding(.top, 6)
@@ -259,8 +269,8 @@ struct PagerView: View {
                 rejectBurstButton(compact: true)
                 crownButton(compact: true)
             }
-            .opacity(currentGroupItems.count > 1 ? 1 : 0)
-            .disabled(currentGroupItems.count <= 1)
+            .opacity(currentStackItems.count > 1 ? 1 : 0)
+            .disabled(currentStackItems.count <= 1)
             ratingButton(.reject, icon: "xmark", color: .red, compact: true)
             ratingButton(.keep, icon: "heart.fill", color: .green, compact: true)
         }
@@ -274,7 +284,7 @@ struct PagerView: View {
         let camera = currentAsset
             .flatMap { model.index[$0.id]?.cameraModel }
         return VStack(spacing: 2) {
-            Text("\(currentGroup + 1) / \(model.groupedItems.count)")
+            Text("\(currentStackIndex + 1) / \(model.order.stacks.count)")
                 .font(.caption.bold())
                 .monospacedDigit()
             Text(camera ?? " ")
@@ -286,23 +296,39 @@ struct PagerView: View {
 
     // MARK: - Current position
 
-    private var currentGroupItems: [CullItem] {
-        model.groupedItems.indices.contains(currentGroup) ? model.groupedItems[currentGroup] : []
+    private var currentStackIndex: Int { model.order.stackIndex(ofStack: position.stackID) ?? 0 }
+
+    private var currentStack: CullStack? {
+        model.order.stackIndex(ofStack: position.stackID).map { model.order.stacks[$0] }
+    }
+
+    private var currentStackItems: [CullItem] {
+        currentStack?.memberIDs.compactMap(model.item(withID:)) ?? []
     }
 
     private var currentAsset: CullItem? {
-        let group = currentGroupItems
-        guard group.count > 1 else { return group.first }
-        if let id = visibleMembers[currentGroup],
-           let member = group.first(where: { $0.id == id }) {
-            return member
-        }
-        return group.first
+        position.currentPhotoID(in: model.order).flatMap(model.item(withID:))
     }
 
-    /// Animates the visible burst to a frame; it counts as current at once.
-    private func scrollBurst(to id: String) {
-        withAnimation(.easeInOut(duration: 0.3)) { visibleMembers[currentGroup] = id }
+    /// Moves to a photo: scrolls its burst (animated) when it's in the
+    /// current stack, else pages over and lands the stack on it.
+    private func go(to photoID: String) {
+        let order = model.order
+        let withinStack = order.stack(containing: photoID)?.id == position.stackID
+        if withinStack {
+            position.move(to: photoID, in: order)
+        } else {
+            withAnimation { position.move(to: photoID, in: order) }
+        }
+        if let stackID = order.stack(containing: photoID)?.id, position.pendingPhotoID(inStack: stackID) != nil {
+            burstScroll = BurstScroll(stackID: stackID, photoID: photoID, animated: withinStack)
+            Task {
+                // A move that never lands (the stack couldn't scroll yet)
+                // gives way to what's really on screen.
+                try? await Task.sleep(for: .seconds(PagerPosition.pendingLifetime + 0.1))
+                position.expirePending()
+            }
+        }
     }
 
     /// Folding/unfolding (iPhone Duo) or rotating changes the viewport:
@@ -316,11 +342,11 @@ struct PagerView: View {
     private func focusLoader() {
         guard let asset = currentAsset else { return }
         model.pagerAnchorID = asset.id
-        // Pager order, not capture order: inside a best-first burst the
-        // neighbors you'll swipe to are the stack's, not the clock's.
-        let order = model.pagerOrder
-        guard let index = order.firstIndex(where: { $0.id == asset.id }) else { return }
-        loader?.focus(on: index, in: order)
+        // Display order: inside a best-first burst the neighbors you'll
+        // swipe to are the stack's, not the clock's.
+        let items = model.orderedItems
+        guard let index = items.firstIndex(where: { $0.id == asset.id }) else { return }
+        loader?.focus(on: index, in: items)
     }
 
     // MARK: - Header
@@ -349,10 +375,12 @@ struct PagerView: View {
     // MARK: - Pager
 
     private var pager: some View {
-        TabView(selection: $currentGroup) {
-            ForEach(model.groupedItems.indices, id: \.self) { groupIndex in
-                groupPage(at: groupIndex)
-                    .tag(groupIndex)
+        // Pages are keyed by stack ID, not index: re-clustering or new shots
+        // can't slide you onto a different photo.
+        TabView(selection: Binding(get: { position.stackID }, set: { position.pageChanged(to: $0) })) {
+            ForEach(model.order.stacks, id: \.id) { stack in
+                stackPage(stack)
+                    .tag(stack.id)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
@@ -365,12 +393,12 @@ struct PagerView: View {
     }
 
     @ViewBuilder
-    private func groupPage(at groupIndex: Int) -> some View {
-        let group = model.groupedItems[groupIndex]
-        if group.count == 1 {
-            frame(for: group[0])
-        } else {
-            burstStack(group: group, groupIndex: groupIndex)
+    private func stackPage(_ stack: CullStack) -> some View {
+        let members = stack.memberIDs.compactMap(model.item(withID:))
+        if members.count == 1 {
+            frame(for: members[0])
+        } else if members.count > 1 {
+            burstStack(stack, members: members)
         }
     }
 
@@ -381,60 +409,75 @@ struct PagerView: View {
     /// paging stride — sizing them from a GeometryReader drifted from the
     /// scroll container under landscape safe-area insets, leaving a sliver
     /// of the next frame visible at the bottom ("tiled" photos).
-    private func burstStack(group: [CullItem], groupIndex: Int) -> some View {
-        ScrollView(.vertical) {
-            // Non-lazy on purpose: programmatic scrolls (rating
-            // auto-advance) animate smoothly only when the target frame
-            // is already laid out. Bursts are small; eager is cheap.
-            let position = memberPosition(group: group, groupIndex: groupIndex)
-            VStack(spacing: 0) {
-                ForEach(Array(group.enumerated()), id: \.element.id) { index, asset in
-                    // Only frames you can reach soon watch the loader: with
-                    // all 24 of a long burst redrawing on every image that
-                    // landed, scrolling the stack stuttered.
-                    let isNear = groupIndex == currentGroup ? abs(index - position) <= 4 : index == position
-                    frame(for: asset, isNear: isNear)
-                        .containerRelativeFrame([.horizontal, .vertical])
-                        .id(asset.id)
+    private func burstStack(_ stack: CullStack, members: [CullItem]) -> some View {
+        let shownIndex = memberIndex(in: stack)
+        let isCurrent = stack.id == position.stackID
+        return ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                // Non-lazy on purpose: programmatic scrolls (rating
+                // auto-advance) animate smoothly only when the target frame
+                // is already laid out.
+                VStack(spacing: 0) {
+                    ForEach(Array(members.enumerated()), id: \.element.id) { index, asset in
+                        // Only frames you can reach soon watch the loader:
+                        // with all 24 of a long burst redrawing on every
+                        // image that landed, scrolling the stack stuttered.
+                        let isNear = isCurrent ? abs(index - shownIndex) <= 4 : index == shownIndex
+                        frame(for: asset, isNear: isNear)
+                            .containerRelativeFrame([.horizontal, .vertical])
+                            .id(asset.id)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            // The stack reports what it really shows; the indicator and the
+            // ratings follow that.
+            .onScrollTargetVisibilityChange(idType: String.self, threshold: 0.6) { ids in
+                if let id = ids.first { position.reportShown(id, inStack: stack.id) }
+            }
+            .scrollIndicators(.hidden)
+            .scrollDisabled(isZoomedIn)
+            // Without this, the scroll view keeps a bottom safe-area content
+            // inset in landscape (home indicator) and that band shows the top
+            // of the NEXT frame — the "tiled photos" bug.
+            .ignoresSafeArea(edges: .bottom)
+            .onAppear {
+                // Entering mid-burst (grid tap, undo, wrap-around): land
+                // there — again after layout, in case it wasn't ready.
+                guard let target = position.pendingPhotoID(inStack: stack.id) else { return }
+                proxy.scrollTo(target, anchor: .top)
+                Task {
+                    try? await Task.sleep(for: .milliseconds(50))
+                    if position.pendingPhotoID(inStack: stack.id) == target { proxy.scrollTo(target, anchor: .top) }
                 }
             }
-            .scrollTargetLayout()
+            .onChange(of: burstScroll) { _, move in
+                guard let move, move.stackID == stack.id else { return }
+                if move.animated {
+                    // Quick, eased at both ends: one continuous glide.
+                    withAnimation(.smooth(duration: 0.32)) { proxy.scrollTo(move.photoID, anchor: .top) }
+                } else {
+                    proxy.scrollTo(move.photoID, anchor: .top)
+                }
+            }
         }
-        .scrollTargetBehavior(.paging)
-        .scrollPosition(id: memberBinding(for: groupIndex, in: group))
-        .scrollIndicators(.hidden)
-        .scrollDisabled(isZoomedIn)
-        // Without this, the scroll view keeps a bottom safe-area content
-        // inset in landscape (home indicator) and that band shows the top
-        // of the NEXT frame — the "tiled photos" bug.
-        .ignoresSafeArea(edges: .bottom)
-        .overlay(alignment: .top) { burstChip(group: group, groupIndex: groupIndex) }
-        .overlay(alignment: .trailing) { burstDotRail(group: group, groupIndex: groupIndex) }
+        .overlay(alignment: .top) { burstChip(stack, members: members) }
+        .overlay(alignment: .trailing) { burstDotRail(stack, members: members) }
     }
 
-    private func memberBinding(for groupIndex: Int, in group: [CullItem]) -> Binding<String?> {
-        Binding(
-            get: { visibleMembers[groupIndex] ?? group.first?.id },
-            set: { newValue in
-                if let newValue {
-                    visibleMembers[groupIndex] = newValue
-                }
-            }
-        )
+    /// Index of the frame a stack shows (or is moving to).
+    private func memberIndex(in stack: CullStack) -> Int {
+        position.photoID(inStack: stack.id, in: model.order)
+            .flatMap { stack.memberIDs.firstIndex(of: $0) } ?? 0
     }
 
-    private func memberPosition(group: [CullItem], groupIndex: Int) -> Int {
-        guard let id = visibleMembers[groupIndex],
-              let index = group.firstIndex(where: { $0.id == id }) else { return 0 }
-        return index
-    }
-
-    private func burstChip(group: [CullItem], groupIndex: Int) -> some View {
-        let position = memberPosition(group: group, groupIndex: groupIndex)
-        let isBest = group[position].id == bestMemberID(in: group)
+    private func burstChip(_ stack: CullStack, members: [CullItem]) -> some View {
+        let index = memberIndex(in: stack)
+        let isBest = stack.memberIDs[index] == bestMemberID(in: members)
         return HStack(spacing: 6) {
             Label(
-                "Burst \(position + 1)/\(group.count)",
+                "Burst \(index + 1)/\(stack.memberIDs.count)",
                 systemImage: "square.stack.3d.down.right.fill"
             )
             if isBest {
@@ -451,12 +494,12 @@ struct PagerView: View {
         .allowsHitTesting(false)
     }
 
-    private func burstDotRail(group: [CullItem], groupIndex: Int) -> some View {
-        let position = memberPosition(group: group, groupIndex: groupIndex)
-        let bestID = bestMemberID(in: group)
+    private func burstDotRail(_ stack: CullStack, members: [CullItem]) -> some View {
+        let shown = memberIndex(in: stack)
+        let bestID = bestMemberID(in: members)
         return VStack(spacing: 5) {
-            ForEach(group.indices, id: \.self) { index in
-                if group[index].id == bestID, index != position {
+            ForEach(stack.memberIDs.indices, id: \.self) { index in
+                if stack.memberIDs[index] == bestID, index != shown {
                     // The frame we think is best — visible from anywhere in
                     // the stack so it's worth scrolling to.
                     Image(systemName: "star.fill")
@@ -464,13 +507,13 @@ struct PagerView: View {
                         .foregroundStyle(.yellow)
                 } else {
                     Capsule()
-                        .fill(index == position ? Color.yellow : Color.white.opacity(0.35))
-                        .frame(width: 4, height: index == position ? 16 : 8)
+                        .fill(index == shown ? Color.yellow : Color.white.opacity(0.35))
+                        .frame(width: 4, height: index == shown ? 16 : 8)
                 }
             }
         }
         .padding(.trailing, 6)
-        .animation(.snappy(duration: 0.2), value: position)
+        .animation(.snappy(duration: 0.2), value: shown)
         .allowsHitTesting(false)
     }
 
@@ -488,12 +531,13 @@ struct PagerView: View {
     /// tracks the current group, mirroring the vertical dot rail for bursts.
     @ViewBuilder
     private var positionBar: some View {
-        let count = model.groupedItems.count
+        let count = model.order.stacks.count
+        let current = currentStackIndex
         if count > 1 {
             GeometryReader { geometry in
                 let thumbWidth = max(geometry.size.width / CGFloat(count), 28)
                 let travel = geometry.size.width - thumbWidth
-                let progress = CGFloat(currentGroup) / CGFloat(count - 1)
+                let progress = CGFloat(current) / CGFloat(count - 1)
                 ZStack(alignment: .leading) {
                     Capsule().fill(.white.opacity(0.15))
                     Capsule()
@@ -505,7 +549,7 @@ struct PagerView: View {
             .frame(height: 4)
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
-            .animation(.snappy(duration: 0.2), value: currentGroup)
+            .animation(.snappy(duration: 0.2), value: current)
         }
     }
 
@@ -530,8 +574,8 @@ struct PagerView: View {
                 crownButton(compact: false)
                 rejectBurstButton(compact: false)
             }
-            .opacity(currentGroupItems.count > 1 ? 1 : 0)
-            .disabled(currentGroupItems.count <= 1)
+            .opacity(currentStackItems.count > 1 ? 1 : 0)
+            .disabled(currentStackItems.count <= 1)
         }
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
@@ -541,7 +585,7 @@ struct PagerView: View {
     private func undoButton(compact: Bool) -> some View {
         Button {
             if let assetID = model.undo() {
-                jump(toAssetID: assetID)
+                go(to: assetID)
             }
         } label: {
             // Same capsule language as the rating buttons.
@@ -555,7 +599,7 @@ struct PagerView: View {
     }
 
     private func rejectBurstButton(compact: Bool) -> some View {
-        let keepsSome = currentGroupItems.contains { model.verdict(for: $0) == .keep }
+        let keepsSome = currentStackItems.contains { model.verdict(for: $0) == .keep }
         return Button {
             rejectBurst()
         } label: {
@@ -626,80 +670,49 @@ struct PagerView: View {
         return verdict != .keep && verdict != .reject
     }
 
-    /// Next frame of the burst if there is one, otherwise the next group;
-    /// the done card only once everything is decided.
-    private func advance() {
-        if allDecided {
-            withAnimation { showsCompletion = true }
-            return
-        }
-        let group = currentGroupItems
-        if group.count > 1 {
-            let position = memberPosition(group: group, groupIndex: currentGroup)
-            if position + 1 < group.count {
-                scrollBurst(to: group[position + 1].id)
-                return
-            }
-        }
-        advanceToNextGroup()
+    private func isUndecided(id: String) -> Bool {
+        model.item(withID: id).map(isUndecided) ?? false
     }
 
-    private func advanceToNextGroup() {
-        if allDecided {
-            withAnimation { showsCompletion = true }
-        } else if currentGroup + 1 < model.groupedItems.count {
-            withAnimation { currentGroup += 1 }
-        } else {
-            // Past the end with work left: wrap to the first group that
-            // still has an undecided photo, landing on that photo.
-            guard let target = model.groupedItems.indices.first(where: { index in
-                model.groupedItems[index].contains(where: isUndecided)
-            }) else { return }
-            if let member = model.groupedItems[target].first(where: isUndecided) {
-                visibleMembers[target] = member.id
-            }
-            withAnimation { currentGroup = target }
-        }
+    /// Down the burst, then the next stack; past the end, the first
+    /// undecided photo. The done card only once everything is decided.
+    private func advance() {
+        guard !allDecided else { return withAnimation { showsCompletion = true } }
+        guard let current = currentAsset,
+              let next = model.order.advance(from: current.id, isUndecided: isUndecided(id:)) else { return }
+        go(to: next)
+    }
+
+    /// After deciding a whole burst: on to the next stack.
+    private func advanceToNextStack() {
+        guard !allDecided else { return withAnimation { showsCompletion = true } }
+        guard let current = currentAsset,
+              let next = model.order.advanceToNextStack(from: current.id, isUndecided: isUndecided(id:)) else { return }
+        go(to: next)
     }
 
     /// "Keep this one": keeps the visible frame, rejects every other frame
     /// of the burst, moves on.
     private func keepThisOne() {
         guard let current = currentAsset else { return }
-        let changes = currentGroupItems.map { (item: $0, verdict: Verdict?.some($0.id == current.id ? .keep : .reject)) }
+        let changes = currentStackItems.map { (item: $0, verdict: Verdict?.some($0.id == current.id ? .keep : .reject)) }
         model.setVerdicts(changes)  // one undo step
-        advanceToNextGroup()
+        advanceToNextStack()
     }
 
     /// Rejects every frame of the burst you haven't kept (all of them if
     /// none are), as one undo step, and moves on.
     private func rejectBurst() {
-        let changes = currentGroupItems
+        let changes = currentStackItems
             .filter { model.verdict(for: $0) != .keep }
             .map { (item: $0, verdict: Verdict?.some(.reject)) }
         model.setVerdicts(changes)
-        advanceToNextGroup()
+        advanceToNextStack()
     }
 
-    // MARK: - Best of burst
-
-    /// The frame we'd bet on (a hint, never a selection). AppModel ranks it
-    /// and puts it first in its stack.
-    private func bestMemberID(in group: [CullItem]) -> String? {
-        model.bestMemberID(in: group)
-    }
-
-    private func jump(toAssetID assetID: String) {
-        guard let groupIndex = model.groupedItems.firstIndex(where: { group in
-            group.contains { $0.id == assetID }
-        }) else { return }
-        if groupIndex == currentGroup {
-            scrollBurst(to: assetID) // animate within the visible stack
-        } else {
-            // Cross-group: seed the target stack's position, page over.
-            visibleMembers[groupIndex] = assetID
-            withAnimation { currentGroup = groupIndex }
-        }
+    /// The frame we'd bet on (a hint, never a selection).
+    private func bestMemberID(in members: [CullItem]) -> String? {
+        model.bestMemberID(among: members.map(\.id))
     }
 }
 

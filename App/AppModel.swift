@@ -27,13 +27,35 @@ final class AppModel {
 
     // MARK: Open session state
     private(set) var currentSession: CullSessionRecord?
-    /// Session photos, newest first.
+    /// Session photos (membership; capture-time order). Navigate with
+    /// `order` / `orderedItems`, never with this.
     private(set) var items: [CullItem] = []
     private(set) var burstGroups: [BurstGroup] = []
-    /// Pager structure: one entry per burst group (or singleton), outer and
-    /// inner both newest-first. Horizontal = between groups, vertical =
-    /// within a burst.
-    private(set) var groupedItems: [[CullItem]] = []
+    /// The one ordering everything navigates by: stacks (a photo or a
+    /// burst) for the pager, frames within bursts, and the flat sequence
+    /// the grid shows and the pager preloads. Rebuilt from items, bursts,
+    /// signals and `orderSettings`.
+    private(set) var order: CullOrder = .empty
+    /// `order.flat` as items (the grid's data).
+    private(set) var orderedItems: [CullItem] = []
+    @ObservationIgnored private var itemByID: [String: CullItem] = [:]
+    /// Time direction + best-first, remembered across launches.
+    var orderSettings: OrderSettings = AppModel.savedOrderSettings {
+        didSet {
+            guard orderSettings != oldValue else { return }
+            if let data = try? JSONEncoder().encode(orderSettings) {
+                UserDefaults.standard.set(data, forKey: "order.settings")
+            }
+            rebuildOrder(pinning: false)  // an explicit re-sort reorders everything
+        }
+    }
+
+    private static var savedOrderSettings: OrderSettings {
+        UserDefaults.standard.data(forKey: "order.settings")
+            .flatMap { try? JSONDecoder().decode(OrderSettings.self, from: $0) } ?? OrderSettings()
+    }
+
+    func item(withID id: String) -> CullItem? { itemByID[id] }
     /// Bumped when images become available that weren't before (camera
     /// frames landing in the cache) so grid/pager re-request them.
     private(set) var imageRevision = 0
@@ -167,7 +189,9 @@ final class AppModel {
         items = []
         index = [:]
         burstGroups = []
-        groupedItems = []
+        order = .empty
+        orderedItems = []
+        itemByID = [:]
         intentLog = IntentLog()
         indexingProgress = (0, 0)
         imageManager.stopCachingImagesForAllAssets()
@@ -262,7 +286,7 @@ final class AppModel {
                 mergeMaxTimeGap: 0
             )
         )
-        rebuildGroupedItems()
+        rebuildOrder()
 
         if let store {
             var assignments: [String: String?] = [:]
@@ -276,52 +300,20 @@ final class AppModel {
         }
     }
 
-    /// Collapses the flat newest-first list into pager groups: burst
-    /// members stack together at the position of their newest frame.
-    private func rebuildGroupedItems() {
-        let itemByID = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-        var groupForItem: [String: BurstGroup] = [:]
-        for group in burstGroups where group.count > 1 {
-            for id in group.assetIDs { groupForItem[id] = group }
-        }
-
-        // The burst on screen in the pager keeps its order: re-ranking it as
-        // signals stream in moved frames under the user mid-scroll.
-        let pinnedOrder = pagerAnchorID.flatMap { anchor in
-            groupedItems.first { group in group.contains { $0.id == anchor } }
-        }?.map(\.id)
-
-        var seenGroupIDs = Set<String>()
-        var result: [[CullItem]] = []
-        for item in items {
-            if let group = groupForItem[item.id] {
-                guard seenGroupIDs.insert(group.id).inserted else { continue }
-                var members = group.assetIDs
-                    .compactMap { itemByID[$0] }
-                    .sorted { ($0.creationDate ?? .distantPast) > ($1.creationDate ?? .distantPast) }
-                // The frame we'd bet on leads its stack (and is what you see
-                // first); the rest stay in capture order behind it.
-                if let pinnedOrder, let anchor = pagerAnchorID, group.assetIDs.contains(anchor) {
-                    let rank = Dictionary(pinnedOrder.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
-                    // Known frames as they were; new ones after, by time.
-                    members = members.filter { rank[$0.id] != nil }.sorted { rank[$0.id]! < rank[$1.id]! }
-                        + members.filter { rank[$0.id] == nil }
-                } else if let best = bestMemberID(in: members),
-                          let index = members.firstIndex(where: { $0.id == best }), index > 0 {
-                    members.insert(members.remove(at: index), at: 0)
-                }
-                result.append(members)
-            } else {
-                result.append([item])
-            }
-        }
-        groupedItems = result
-        pagerOrder = result.flatMap { $0 }
+    /// Rebuilds the session's order. `pinning` keeps the frame order of
+    /// the burst on screen in the pager (re-ranking it as signals stream in
+    /// moved frames under the user mid-scroll); an explicit re-sort doesn't.
+    private func rebuildOrder(pinning: Bool = true) {
+        itemByID = Dictionary(items.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let bursts = burstGroups.filter { $0.count > 1 }
+        var best: [String: String] = [:]
+        for burst in bursts { best[burst.id] = bestMemberID(among: burst.assetIDs) }
+        let pinned = pinning ? pagerAnchorID.flatMap { order.stack(containing: $0) } : nil
+        order = CullOrder(photos: items.map { ($0.id, $0.creationDate) },
+                          bursts: bursts.map { ($0.id, $0.assetIDs) },
+                          settings: orderSettings, best: best, pinned: pinned)
+        orderedItems = order.flat.compactMap { itemByID[$0] }
     }
-
-    /// Every photo in pager order: groups in sequence, burst frames in
-    /// stack order. The pager preloads neighbors in this order.
-    private(set) var pagerOrder: [CullItem] = []
 
     /// The photo the pager is showing (nil when closed); its burst keeps
     /// its order across re-clustering.
@@ -329,22 +321,20 @@ final class AppModel {
 
     /// The burst frame we'd bet on — a hint, never a decision. Ranked:
     /// nobody mid-blink, most faces, best face quality, aesthetic score.
-    /// Ties keep capture order, so with no signals yet nothing moves.
+    /// Nil on a tie for the top (e.g. no signals yet), so nothing moves.
     /// Signals stream in from the indexer, so this sharpens as it indexes.
-    func bestMemberID(in group: [CullItem]) -> String? {
-        func score(_ item: CullItem) -> (Int, Int, Double, Double) {
-            let record = index[item.id]
+    func bestMemberID(among ids: [String]) -> String? {
+        func score(_ id: String) -> (Int, Int, Double, Double) {
+            let record = index[id]
             return ((record?.closedEyesCount ?? 0) == 0 ? 1 : 0,
                     record?.faceCount ?? 0,
                     record?.bestFaceQuality ?? 0,
                     record?.aestheticScore ?? -1)
         }
-        var best: (id: String, score: (Int, Int, Double, Double))?
-        for item in group {
-            let s = score(item)
-            if best == nil || s > best!.score { best = (item.id, s) }
-        }
-        return best?.id
+        let scored = ids.map { ($0, score($0)) }
+        guard let top = scored.max(by: { $0.1 < $1.1 }),
+              scored.filter({ $0.1 == top.1 }).count == 1 else { return nil }
+        return top.0
     }
 
     // MARK: - Culling

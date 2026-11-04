@@ -2,6 +2,7 @@ import SwiftUI
 import Photos
 import PhotosUI
 
+import BurstClustering
 import CullIntent
 
 /// An open culling session: grid of its photos (newest first), indexing
@@ -38,9 +39,9 @@ struct SessionView: View {
                 .toolbar { toolbarContent }
                 .overlay(alignment: .bottom) { statusBar }
                 .fullScreenCover(item: $pagerIndex) { index in
-                    let target = pagerTarget(forFlatIndex: index)
-                    PagerView(startGroup: target.group, startMemberID: target.memberID,
-                              provider: model.imageProvider)
+                    // Grid index → photo: both read the session's one order.
+                    PagerView(startPhotoID: model.orderedItems.indices.contains(index) ? model.orderedItems[index].id : nil,
+                              order: model.order, provider: model.imageProvider)
                 }
         }
         .preferredColorScheme(.dark)
@@ -125,6 +126,7 @@ struct SessionView: View {
         }
 
         ToolbarItemGroup(placement: .topBarTrailing) {
+            sortMenu
             if model.isCameraSession {
                 // Import = Apply for the card: keepers' full RAWs into
                 // Photos. Nothing is deleted anywhere, so no confirmation.
@@ -143,6 +145,27 @@ struct SessionView: View {
                     .bold()
                     .disabled(model.verdictCounts.isEmpty)
             }
+        }
+    }
+
+    /// Session order, for the grid and the pager alike.
+    private var sortMenu: some View {
+        Menu {
+            Picker("Order", selection: Binding(
+                get: { model.orderSettings.direction },
+                set: { model.orderSettings.direction = $0 }
+            )) {
+                Label("Newest First", systemImage: "arrow.down").tag(TimeDirection.newestFirst)
+                Label("Oldest First", systemImage: "arrow.up").tag(TimeDirection.oldestFirst)
+            }
+            Toggle(isOn: Binding(
+                get: { model.orderSettings.bestFirst },
+                set: { model.orderSettings.bestFirst = $0 }
+            )) {
+                Label("Best Frame First in Bursts", systemImage: "star")
+            }
+        } label: {
+            Label("Sort", systemImage: "arrow.up.arrow.down")
         }
     }
 
@@ -185,19 +208,6 @@ struct SessionView: View {
         .padding(.vertical, 10)
         .background(.thinMaterial)
         .animation(.default, value: progress.done < progress.total)
-    }
-
-    /// Grid taps carry a flat index; the pager navigates groups. A tap on a
-    /// mid-burst frame lands on that exact frame inside its stack.
-    private func pagerTarget(forFlatIndex index: Int) -> (group: Int, memberID: String?) {
-        guard model.items.indices.contains(index) else { return (0, nil) }
-        let assetID = model.items[index].id
-        if let groupIndex = model.groupedItems.firstIndex(where: { group in
-            group.contains { $0.id == assetID }
-        }) {
-            return (groupIndex, assetID)
-        }
-        return (0, nil)
     }
 
     private func runApply() async {

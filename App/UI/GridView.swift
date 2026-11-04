@@ -23,7 +23,7 @@ struct GridView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ controller: GridViewController, context: Context) {
-        controller.reload(items: model.items, revision: revision, imageRevision: imageRevision)
+        controller.reload(items: model.orderedItems, revision: revision, imageRevision: imageRevision)
     }
 }
 
@@ -110,8 +110,9 @@ final class GridViewController: UIViewController {
         let record = model.index[item.id]
         cell.showsAFBadge = record?.focusLocation != nil
         cell.faceCount = record?.faceCount ?? 0
-        cell.isBurstLeader = model.burstGroups
-            .first { $0.id == item.id && $0.count > 1 } != nil
+        // Badge the burst's top frame — where the pager opens it.
+        cell.isBurstLeader = model.order.stack(containing: item.id)
+            .map { $0.isBurst && $0.memberIDs.first == item.id } ?? false
         cell.score = record?.aestheticScore100
         cell.warnsClosedEyes = (record?.closedEyesCount ?? 0) > 0
         cell.warnsExposure = (record?.clippedHighlights ?? 0) > 0.03
