@@ -16,7 +16,7 @@ import RequestScheduling
 @MainActor
 @Observable
 final class PagerImageLoader {
-    /// Bumped whenever an image lands in the cache.
+    /// Bumped whenever an image lands.
     private(set) var revision = 0
     /// Frames within reach of the current one (±4 in display order). Frame
     /// views read this themselves to decide whether to watch `revision` —
@@ -26,21 +26,11 @@ final class PagerImageLoader {
     private(set) var window: Set<String> = []
 
     @ObservationIgnored private let provider: CullImageProvider
-    /// Images held for the pager. Not an NSCache: iOS empties those under
-    /// memory pressure (constant on device with screen-size previews), and
-    /// an evicted current frame sat on the spinner — nothing re-asked for
-    /// it until you moved away and back. Frames in the window are never
-    /// dropped; a few recent others stay for quick back-swipes.
-    @ObservationIgnored private var images: [String: UIImage] = [:]
-    @ObservationIgnored private var recent: [String] = []
-    private static let extraKept = 6
-    /// Token tells a late completion apart from a newer request for the
-    /// same frame (some providers can't cancel).
-    @ObservationIgnored private var inFlight: [String: (token: UUID, cancel: (() -> Void)?)] = [:]
-    @ObservationIgnored private var scheduler = RequestScheduler<String>()
+    /// What to load, keep, cancel and re-request — pure and unit-tested
+    /// (VampireCore `WindowedLoader`); this class only carries it out.
+    @ObservationIgnored private var core = WindowedLoader<String, UIImage>()
+    @ObservationIgnored private var cancels: [WindowedLoader<String, UIImage>.Request: () -> Void] = [:]
     @ObservationIgnored private var itemsByID: [String: CullItem] = [:]
-    /// Items whose cached image is the real preview, not a stand-in.
-    @ObservationIgnored private var full: Set<String> = []
 
     /// Viewport-bound pixel size; anything bigger is wasted decode. Starts
     /// at a typical large iPhone and follows the pager's real viewport via
@@ -53,23 +43,6 @@ final class PagerImageLoader {
         self.provider = provider
     }
 
-    private func store(_ image: UIImage, for itemID: String) {
-        images[itemID] = image
-        recent.removeAll { $0 == itemID }
-        recent.append(itemID)
-        trim()
-    }
-
-    /// Keeps every window frame plus the most recent few others.
-    private func trim() {
-        var extras = 0
-        for id in recent.reversed() where !window.contains(id) {
-            extras += 1
-            if extras > Self.extraKept { images[id] = nil }
-        }
-        recent.removeAll { images[$0] == nil }
-    }
-
     /// The pager's size in points and its display scale. Growing past what's
     /// cached re-requests the frames in view at the new size.
     func updateViewport(_ size: CGSize, scale: CGFloat) {
@@ -77,78 +50,47 @@ final class PagerImageLoader {
         guard pixels.width > 0, pixels.height > 0, pixels != targetSize else { return }
         let grew = pixels.width > targetSize.width || pixels.height > targetSize.height
         targetSize = pixels
-        if grew { full.removeAll() }  // re-request in view at the sharper size
+        if grew { core.invalidateAll() }  // re-request in view at the sharper size
     }
 
     func cachedImage(for itemID: String) -> UIImage? {
-        images[itemID]
+        core.image(for: itemID)
     }
 
     /// Pager moved (or new frames landed): current frame first, neighbors
-    /// behind it. Loads still inside the window keep going — cancelling and
-    /// restarting them on every refocus (each camera frame landing triggers
-    /// one) starved the frame on screen.
+    /// behind it, nearest first for sources that fetch over the network.
     func focus(on index: Int, in items: [CullItem]) {
         guard items.indices.contains(index) else { return }
-        let window = max(0, index - 4) ... min(items.count - 1, index + 4)
-        itemsByID = [:]
-        for i in window {
-            itemsByID[items[i].id] = items[i]
-        }
-        let ids = Set(itemsByID.keys)
-        if ids != self.window { self.window = ids; trim() }
-        for (id, entry) in inFlight where itemsByID[id] == nil {
-            entry.cancel?()
-            inFlight[id] = nil
-        }
-        scheduler.advanceGeneration()
-        provider.prioritize(window.sorted { abs($0 - index) < abs($1 - index) }.map { items[$0] })
-
-        scheduler.focus(
-            current: items[index].id,
-            next: index + 1 < items.count ? items[index + 1].id : nil,
-            previous: index > 0 ? items[index - 1].id : nil,
-            prefetch: window
-                .filter { abs($0 - index) > 1 }
-                .map { items[$0].id }
-        )
-        pump()
+        let range = max(0, index - core.radius) ... min(items.count - 1, index + core.radius)
+        for i in range { itemsByID[items[i].id] = items[i] }
+        provider.prioritize(range.sorted { abs($0 - index) < abs($1 - index) }.map { items[$0] })
+        apply(core.focus(on: index, in: items.map(\.id)))
+        if core.window != window { window = core.window }
+        itemsByID = itemsByID.filter { core.window.contains($0.key) }
     }
 
-    private func pump() {
-        while inFlight.count < 3, let request = scheduler.dequeue() {
-            start(request.key)
-        }
-    }
-
-    private func start(_ itemID: String) {
-        guard !full.contains(itemID) || images[itemID] == nil,
-              inFlight[itemID] == nil,
-              let item = itemsByID[itemID] else {
-            pumpIfIdle()
-            return
-        }
-        let token = UUID()
-        inFlight[itemID] = (token, nil)
-        var finished = false
-        let cancel = provider.requestPreview(for: item, targetSize: targetSize) { [weak self] image, isFinal in
-            guard let self else { return }
-            if let image {
-                self.store(image, for: itemID)
-                self.revision += 1
-            }
-            if isFinal {
-                finished = true
-                if self.provider.hasFullPreview(for: item) { self.full.insert(itemID) }
-                if self.inFlight[itemID]?.token == token { self.inFlight.removeValue(forKey: itemID) }
-                self.pump()
+    private func apply(_ effects: [WindowedLoader<String, UIImage>.Effect]) {
+        for effect in effects {
+            switch effect {
+            case .cancel(let request):
+                cancels.removeValue(forKey: request)?()
+            case .start(let request):
+                guard let item = itemsByID[request.key] else { continue }
+                var finished = false
+                let cancel = provider.requestPreview(for: item, targetSize: targetSize) { [weak self] image, isFinal in
+                    guard let self else { return }
+                    if isFinal {
+                        finished = true
+                        self.cancels[request] = nil
+                    }
+                    let next = self.core.deliver(request, image: image, isFinal: isFinal,
+                                                 isFull: isFinal && self.provider.hasFullPreview(for: item))
+                    if image != nil { self.revision += 1 }
+                    self.apply(next)
+                }
+                if !finished, let cancel { cancels[request] = cancel }
             }
         }
-        if !finished, inFlight[itemID]?.token == token { inFlight[itemID] = (token, cancel) }
-    }
-
-    private func pumpIfIdle() {
-        if !scheduler.isEmpty { pump() }
     }
 }
 

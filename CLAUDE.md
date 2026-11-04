@@ -28,6 +28,7 @@ An iOS-only app for culling Sony RAW (ARW) photos — either already in the Phot
 Three tiers, build the pure ones first:
 
 - **Pure logic (unit-tested, no device):** MakerNotes/IFD parser, intent log + undo/redo, burst clustering, feature-print distance, the scheduler queue. Iterate freely with the test loop. These live as Swift package targets.
+- **Pager state (pure, unit + simulation tested):** `CullOrder` (ordering), `PagerPosition` (photo on screen), `WindowedLoader` (what to load/keep/cancel/retry; the app's `PagerImageLoader` only carries it out). `PagerSimulationTests` drives all three together against a simulated view + image source — scripted repros of past bugs plus 400 seeded random sessions checked against invariants (current photo always in reach and loaded-or-requested, never evicted, indicator = screen). When fixing a pager/loading bug, add its repro there first; keep decisions out of SwiftUI so they stay testable.
 - **Framework integration (simulator/device):** PhotoKit fetch, Vision requests, caching manager.
 - **Feel (device only):** scroll smoothness, gestures, zoom-to-AF.
 

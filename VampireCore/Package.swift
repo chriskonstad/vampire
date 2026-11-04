@@ -38,6 +38,11 @@ let package = Package(
         .target(name: "RequestScheduling"),
         .testTarget(name: "RequestSchedulingTests", dependencies: ["RequestScheduling"]),
 
+        // The pager's ordering, position and image loading driven together
+        // against a simulated view and image source: scripted repros of past
+        // bugs plus randomized sessions checked against invariants.
+        .testTarget(name: "PagerSimulationTests", dependencies: ["BurstClustering", "RequestScheduling"]),
+
         // Index records + GRDB store + intent-log persistence. Source of truth for the UI.
         .target(
             name: "VampireIndex",
