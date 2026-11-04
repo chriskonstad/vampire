@@ -26,7 +26,14 @@ final class PagerImageLoader {
     private(set) var window: Set<String> = []
 
     @ObservationIgnored private let provider: CullImageProvider
-    @ObservationIgnored private let cache = NSCache<NSString, UIImage>()
+    /// Images held for the pager. Not an NSCache: iOS empties those under
+    /// memory pressure (constant on device with screen-size previews), and
+    /// an evicted current frame sat on the spinner — nothing re-asked for
+    /// it until you moved away and back. Frames in the window are never
+    /// dropped; a few recent others stay for quick back-swipes.
+    @ObservationIgnored private var images: [String: UIImage] = [:]
+    @ObservationIgnored private var recent: [String] = []
+    private static let extraKept = 6
     /// Token tells a late completion apart from a newer request for the
     /// same frame (some providers can't cancel).
     @ObservationIgnored private var inFlight: [String: (token: UUID, cancel: (() -> Void)?)] = [:]
@@ -44,7 +51,23 @@ final class PagerImageLoader {
 
     init(provider: CullImageProvider) {
         self.provider = provider
-        cache.countLimit = 12 // current ± 4 neighbors + slack; previews are screen-size
+    }
+
+    private func store(_ image: UIImage, for itemID: String) {
+        images[itemID] = image
+        recent.removeAll { $0 == itemID }
+        recent.append(itemID)
+        trim()
+    }
+
+    /// Keeps every window frame plus the most recent few others.
+    private func trim() {
+        var extras = 0
+        for id in recent.reversed() where !window.contains(id) {
+            extras += 1
+            if extras > Self.extraKept { images[id] = nil }
+        }
+        recent.removeAll { images[$0] == nil }
     }
 
     /// The pager's size in points and its display scale. Growing past what's
@@ -58,7 +81,7 @@ final class PagerImageLoader {
     }
 
     func cachedImage(for itemID: String) -> UIImage? {
-        cache.object(forKey: itemID as NSString)
+        images[itemID]
     }
 
     /// Pager moved (or new frames landed): current frame first, neighbors
@@ -73,7 +96,7 @@ final class PagerImageLoader {
             itemsByID[items[i].id] = items[i]
         }
         let ids = Set(itemsByID.keys)
-        if ids != self.window { self.window = ids }
+        if ids != self.window { self.window = ids; trim() }
         for (id, entry) in inFlight where itemsByID[id] == nil {
             entry.cancel?()
             inFlight[id] = nil
@@ -99,7 +122,7 @@ final class PagerImageLoader {
     }
 
     private func start(_ itemID: String) {
-        guard !full.contains(itemID) || cache.object(forKey: itemID as NSString) == nil,
+        guard !full.contains(itemID) || images[itemID] == nil,
               inFlight[itemID] == nil,
               let item = itemsByID[itemID] else {
             pumpIfIdle()
@@ -111,7 +134,7 @@ final class PagerImageLoader {
         let cancel = provider.requestPreview(for: item, targetSize: targetSize) { [weak self] image, isFinal in
             guard let self else { return }
             if let image {
-                self.cache.setObject(image, forKey: itemID as NSString)
+                self.store(image, for: itemID)
                 self.revision += 1
             }
             if isFinal {

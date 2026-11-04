@@ -15,6 +15,9 @@ public struct PagerPosition: Equatable, Sendable {
     public private(set) var stackID: String
     private var shown: [String: String] = [:]
     private var pending: Pending?
+    /// The frame you were on when you paged away from a stack — where you
+    /// land when you page back (its view may have been rebuilt at the top).
+    private var resume: [String: String] = [:]
 
     private struct Pending: Equatable, Sendable {
         let stackID: String
@@ -68,11 +71,20 @@ public struct PagerPosition: Equatable, Sendable {
         return sameStack
     }
 
-    /// The user paged sideways (the TabView's selection changed).
-    public mutating func pageChanged(to stackID: String) {
+    /// The user paged sideways (the TabView's selection changed). Leaving
+    /// a stack mid-burst remembers the frame; coming back lands on it.
+    public mutating func pageChanged(to stackID: String, in order: CullOrder, now: Date = Date()) {
         guard stackID != self.stackID else { return }
+        if let left = currentPhotoID(in: order) { resume[self.stackID] = left }
         self.stackID = stackID
         if pending?.stackID != stackID { pending = nil }
+        if pending == nil, let back = resume[stackID],
+           let index = order.stackIndex(ofStack: stackID),
+           order.stacks[index].memberIDs.contains(back),
+           order.stacks[index].memberIDs.first != back,
+           shown[stackID] != back {
+            pending = Pending(stackID: stackID, photoID: back, since: now)
+        }
     }
 
     /// A stack's scroll view reports the frame it shows.
@@ -115,6 +127,7 @@ public struct PagerPosition: Equatable, Sendable {
                   before != stack.memberIDs else { continue }
             reordered.append(stack.id)
             shown[stack.id] = nil
+            resume[stack.id] = nil
             if pending?.stackID == stack.id { pending = nil }
         }
         shown = shown.filter { order.stackIndex(ofStack: $0.key) != nil }

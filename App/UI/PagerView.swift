@@ -328,12 +328,27 @@ struct PagerView: View {
         }
         if let stackID = order.stack(containing: photoID)?.id, position.pendingPhotoID(inStack: stackID) != nil {
             burstScroll = BurstScroll(stackID: stackID, photoID: photoID, animated: withinStack)
-            Task {
-                // A move that never lands (the stack couldn't scroll yet)
-                // gives way to what's really on screen.
-                try? await Task.sleep(for: .seconds(PagerPosition.pendingLifetime + 0.1))
-                position.expirePending()
-            }
+            expireLater()
+        }
+    }
+
+    /// Swiped sideways onto a stack. Back on a burst you'd left mid-way,
+    /// land on that frame (its page may have been rebuilt at the top — the
+    /// page usually builds mid-swipe, before this runs, so tell it).
+    private func pageChanged(to stackID: String) {
+        position.pageChanged(to: stackID, in: model.order)
+        if let target = position.pendingPhotoID(inStack: stackID) {
+            burstScroll = BurstScroll(stackID: stackID, photoID: target, animated: false)
+            expireLater()
+        }
+    }
+
+    /// A move that never lands (the stack couldn't scroll yet) gives way to
+    /// what's really on screen.
+    private func expireLater() {
+        Task {
+            try? await Task.sleep(for: .seconds(PagerPosition.pendingLifetime + 0.1))
+            position.expirePending()
         }
     }
 
@@ -383,7 +398,7 @@ struct PagerView: View {
     private var pager: some View {
         // Pages are keyed by stack ID, not index: re-clustering or new shots
         // can't slide you onto a different photo.
-        TabView(selection: Binding(get: { position.stackID }, set: { position.pageChanged(to: $0) })) {
+        TabView(selection: Binding(get: { position.stackID }, set: { pageChanged(to: $0) })) {
             ForEach(model.order.stacks, id: \.id) { stack in
                 stackPage(stack)
                     .tag(stack.id)

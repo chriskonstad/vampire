@@ -53,10 +53,22 @@ final class PagerPositionTests: XCTestCase {
     func testPagingBackShowsWhatTheStackStillShows() {
         var position = PagerPosition(photoID: "b3", in: order, now: t0)
         position.reportShown("b1", inStack: "b1", now: t0)
-        position.pageChanged(to: "a")
+        position.pageChanged(to: "a", in: order, now: t0)
         XCTAssertEqual(position.currentPhotoID(in: order), "a")
-        position.pageChanged(to: "b1")
+        position.pageChanged(to: "b1", in: order, now: t0)
         XCTAssertEqual(position.currentPhotoID(in: order), "b1")
+        XCTAssertNil(position.pendingPhotoID(inStack: "b1"))  // still shown: nothing to scroll
+    }
+
+    func testPagingBackToARebuiltStackResumesMidBurst() {
+        var position = PagerPosition(photoID: "b3", in: order, now: t0)
+        position.reportShown("b2", inStack: "b1", now: t0)
+        position.pageChanged(to: "a", in: order, now: t0)
+        // The stack's page was discarded; rebuilt, it reports its top.
+        position.reportShown("b3", inStack: "b1", now: t0 + 1)
+        position.pageChanged(to: "b1", in: order, now: t0 + 2)
+        XCTAssertEqual(position.pendingPhotoID(inStack: "b1"), "b2")  // the view scrolls back
+        XCTAssertEqual(position.currentPhotoID(in: order), "b2")
     }
 
     func testReconcileFollowsThePhotoIntoANewStack() {
