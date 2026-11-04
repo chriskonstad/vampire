@@ -18,6 +18,12 @@ import RequestScheduling
 final class PagerImageLoader {
     /// Bumped whenever an image lands in the cache.
     private(set) var revision = 0
+    /// Frames within reach of the current one (±4 in display order). Frame
+    /// views read this themselves to decide whether to watch `revision` —
+    /// a nearness flag computed by the pager went stale inside paged
+    /// TabView content (not rebuilt as you move), leaving a burst's first
+    /// frame blank until you scrolled away and back.
+    private(set) var window: Set<String> = []
 
     @ObservationIgnored private let provider: CullImageProvider
     @ObservationIgnored private let cache = NSCache<NSString, UIImage>()
@@ -66,6 +72,8 @@ final class PagerImageLoader {
         for i in window {
             itemsByID[items[i].id] = items[i]
         }
+        let ids = Set(itemsByID.keys)
+        if ids != self.window { self.window = ids }
         for (id, entry) in inFlight where itemsByID[id] == nil {
             entry.cancel?()
             inFlight[id] = nil

@@ -416,20 +416,14 @@ struct PagerView: View {
     /// scroll container under landscape safe-area insets, leaving a sliver
     /// of the next frame visible at the bottom ("tiled" photos).
     private func burstStack(_ stack: CullStack, members: [CullItem]) -> some View {
-        let shownIndex = memberIndex(in: stack)
-        let isCurrent = stack.id == position.stackID
         return ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 // Non-lazy on purpose: programmatic scrolls (rating
                 // auto-advance) animate smoothly only when the target frame
                 // is already laid out.
                 VStack(spacing: 0) {
-                    ForEach(Array(members.enumerated()), id: \.element.id) { index, asset in
-                        // Only frames you can reach soon watch the loader:
-                        // with all 24 of a long burst redrawing on every
-                        // image that landed, scrolling the stack stuttered.
-                        let isNear = isCurrent ? abs(index - shownIndex) <= 4 : index == shownIndex
-                        frame(for: asset, isNear: isNear)
+                    ForEach(members) { asset in
+                        frame(for: asset)
                             .containerRelativeFrame([.horizontal, .vertical])
                             .id(asset.id)
                     }
@@ -533,9 +527,9 @@ struct PagerView: View {
         .allowsHitTesting(false)
     }
 
-    private func frame(for asset: CullItem, isNear: Bool = true) -> some View {
+    private func frame(for asset: CullItem) -> some View {
         PagerFrameView(
-            loader: isNear ? loader : nil,
+            loader: loader,
             itemID: asset.id,
             record: model.index[asset.id],
             showsAFOverlay: showsAFOverlay,
@@ -746,7 +740,11 @@ private struct PagerFrameView: View {
 
     var body: some View {
         ZStack {
-            let _ = loader?.revision
+            // Only frames within reach watch for new images: with all 24 of
+            // a long burst redrawing on every image that landed, scrolling
+            // stuttered. The rest show what's cached, else black.
+            let isNear = loader?.window.contains(itemID) ?? false
+            if isNear { let _ = loader?.revision }
             if let image = loader?.cachedImage(for: itemID) {
                 ZoomablePhotoView(
                     image: image,
@@ -756,7 +754,7 @@ private struct PagerFrameView: View {
                     showsAFOverlay: showsAFOverlay,
                     onZoomChange: onZoomChange
                 )
-            } else if loader == nil {
+            } else if !isNear {
                 Color.black  // far from view: not loading, nothing to animate
             } else {
                 ProgressView()
