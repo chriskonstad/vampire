@@ -509,17 +509,23 @@ struct PagerView: View {
         let bestID = bestMemberID(in: members)
         return VStack(spacing: 5) {
             ForEach(stack.memberIDs.indices, id: \.self) { index in
-                if stack.memberIDs[index] == bestID {
-                    // The frame we think is best — a star from anywhere in the
-                    // stack, and still a star (just bigger) while you're on it.
-                    Image(systemName: "star.fill")
-                        .font(.system(size: index == shown ? 14 : 8))
-                        .foregroundStyle(.yellow)
-                } else {
-                    Capsule()
-                        .fill(index == shown ? Color.yellow : Color.white.opacity(0.35))
-                        .frame(width: 4, height: index == shown ? 16 : 8)
+                Group {
+                    if stack.memberIDs[index] == bestID {
+                        // The frame we think is best — a star from anywhere in
+                        // the stack, and still a star (just bigger) while you're on it.
+                        Image(systemName: "star.fill")
+                            .font(.system(size: index == shown ? 14 : 8))
+                            .foregroundStyle(.yellow)
+                    } else {
+                        Capsule()
+                            .fill(index == shown ? Color.yellow : Color.white.opacity(0.35))
+                            .frame(width: 4, height: index == shown ? 16 : 8)
+                    }
                 }
+                // Fixed slots: the current one is tall, the rest short,
+                // whatever's drawn in them — so the rail's height (and every
+                // dot's position) never changes as you move through the burst.
+                .frame(width: 14, height: index == shown ? 16 : 8)
             }
         }
         .padding(.trailing, 6)
