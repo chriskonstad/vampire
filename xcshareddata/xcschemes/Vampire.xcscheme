@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "1560"
+   version = "1.7">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES">
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <MacroExpansion>
+              <BuildableReference
+                 BuildableIdentifier = "primary"
+                 BlueprintIdentifier = "AA0000070000000000000001"
+                 BuildableName = "Vampire.app"
+                 BlueprintName = "Vampire"
+                 ReferencedContainer = "container:Vampire.xcodeproj">
+              </BuildableReference>
+              <BuildableName>Vampire.app</BuildableName>
+            </MacroExpansion>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      shouldUseLaunchSchemeArgsEnv = "YES">
+      <Testables>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "1">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "AA0000070000000000000001"
+            BuildableName = "Vampire.app"
+            BlueprintName = "Vampire"
+            ReferencedContainer = "container:Vampire.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+      <TestPlans>
+      </TestPlans>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = "com.apple.TimeProfiler.Launchable.TimeProfilerLaunchable"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "AA0000070000000000000001"
+            BuildableName = "Vampire.app"
+            BlueprintName = "Vampire"
+            ReferencedContainer = "container:Vampire.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+      <TestPlans>
+      </TestPlans>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+   <DebugAction
+      type = "0"
+      platform = "iOS"
+      deviceName = "iPhone 16 Pro">
+   </DebugAction>
+   <Theme
+      type = "Dark">
+   </Theme>
+</Scheme>
