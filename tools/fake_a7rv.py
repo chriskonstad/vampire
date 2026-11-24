@@ -17,7 +17,7 @@ anything else — including every delete — with OperationNotSupported.
 """
 import json, os, socket, struct, sys, threading, time
 
-PORT = 15740
+DEFAULT_PORT = 15740
 # FAKE_SCREENNAIL_DELAY=0.6 simulates real over-the-air fetch times.
 SCREENNAIL_DELAY = float(os.environ.get("FAKE_SCREENNAIL_DELAY", "0"))
 OK, NOT_SUPPORTED, INVALID_PARAM = 0x2001, 0x2005, 0x201D
@@ -137,11 +137,12 @@ def serve(conn, card, first_tid_conn):
 
 def main():
     root = sys.argv[1]
+    port = int(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_PORT
     srv = socket.socket()
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    srv.bind(("0.0.0.0", PORT))
+    srv.bind(("0.0.0.0", port))
     srv.listen(8)
-    print(f"fake ILCE-7RM5 serving {root} on :{PORT}", flush=True)
+    print(f"fake ILCE-7RM5 serving {root} on :{port}", flush=True)
     pending = {}
     lock = threading.Lock()
 

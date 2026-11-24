@@ -16,6 +16,7 @@ format:
 # Pure unit tests (fast — seconds, no device)
 test:
     cd VampireCore && swift test
+    python3 tools/test_fake_a7rv.py
 
 # Full App build for the iOS Simulator (generic destination: works on any
 # machine with the iOS SDK, no specific simulator needed)
@@ -24,6 +25,10 @@ build:
 
 # Lint + tests only — the fast loop when iterating on pure logic
 fast: lint test
+
+# The fake camera's own tests (protocol, never-delete refusal)
+test-tools:
+    python3 tools/test_fake_a7rv.py
 
 # Alias for the common case
 default: check
