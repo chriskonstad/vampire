@@ -322,3 +322,64 @@ final class IndexStoreTests: XCTestCase {
         XCTAssertEqual(floats(from: data(from: values)), values)
     }
 }
+
+/// Pure signal math (exposure histogram, blink counting, IoU) — the numbers
+/// the UI reads from the index. Synthetic inputs; no Vision anywhere.
+final class SignalAnalysisTests: XCTestCase {
+    func testClosedEyesCountsOnlyBelowThreshold() {
+        let faces = [
+            FaceRecord(assetID: "a", x: 0, y: 0, width: 0.1, height: 0.1, captureQuality: nil, eyesOpen: 0.1),
+            FaceRecord(assetID: "a", x: 0.2, y: 0, width: 0.1, height: 0.1, captureQuality: nil, eyesOpen: 0.2),
+            FaceRecord(assetID: "a", x: 0.4, y: 0, width: 0.1, height: 0.1, captureQuality: nil, eyesOpen: 0.5),
+            // nil openness counts as open
+            FaceRecord(assetID: "a", x: 0.6, y: 0, width: 0.1, height: 0.1, captureQuality: nil, eyesOpen: nil),
+        ]
+        XCTAssertEqual(SignalAnalysis.closedEyes(faces: faces), 1)
+    }
+
+    func testOverlapRatioIdenticalAndDisjoint() {
+        let r = CGRect(x: 0.1, y: 0.2, width: 0.3, height: 0.4)
+        XCTAssertEqual(SignalAnalysis.overlapRatio(r, r), 1, accuracy: 0.001)
+        let disjoint = CGRect(x: 0.6, y: 0.6, width: 0.1, height: 0.1)
+        XCTAssertEqual(SignalAnalysis.overlapRatio(r, disjoint), 0)
+    }
+
+    func testOverlapRatioPartial() {
+        let a = CGRect(x: 0, y: 0, width: 0.5, height: 0.5)
+        let b = CGRect(x: 0.25, y: 0, width: 0.5, height: 0.5)
+        // intersection 0.25*0.5=0.125; union 0.25+0.25-0.125=0.375
+        XCTAssertEqual(SignalAnalysis.overlapRatio(a, b), 0.125 / 0.375, accuracy: 0.001)
+    }
+
+    /// Pure CoreGraphics: synthetic solid images must land in the right buckets.
+    func testExposureStatsBlackAndWhite() throws {
+        let black = solidImage(r: 0, g: 0, b: 0)
+        let blackStats = try XCTUnwrap(SignalAnalysis.exposureStats(of: black))
+        XCTAssertGreaterThan(blackStats.crushed, 0.9)
+        XCTAssertLessThan(blackStats.clipped, 0.1)
+
+        let white = solidImage(r: 255, g: 255, b: 255)
+        let whiteStats = try XCTUnwrap(SignalAnalysis.exposureStats(of: white))
+        XCTAssertGreaterThan(whiteStats.clipped, 0.9)
+        XCTAssertLessThan(whiteStats.crushed, 0.1)
+        XCTAssertGreaterThan(whiteStats.mean, 0.9)
+    }
+
+    private func solidImage(r: UInt8, g: UInt8, b: UInt8) -> CGImage {
+        let side = 32
+        guard
+            let context = CGContext(
+                data: nil, width: side, height: side,
+                bitsPerComponent: 8, bytesPerRow: side * 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        else { fatalError("context") }
+        context.setFillColor(
+            CGColor(
+                red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, alpha: 1
+            ))
+        context.fill(CGRect(x: 0, y: 0, width: side, height: side))
+        return context.makeImage()!
+    }
+}

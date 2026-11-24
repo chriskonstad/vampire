@@ -1,5 +1,6 @@
 import BurstClustering
 import CullIntent
+import PTP
 import Photos
 import SonyMakerNotes
 import SwiftUI
@@ -398,16 +399,22 @@ final class AppModel {
     /// Commits the open session: one batched change, one system dialog.
     func apply(dryRun: Bool = false) async throws -> ApplyResult {
         // Camera sessions never delete: their Apply is importKeepers().
-        guard let session = currentSession, session.kind == .library else {
+        guard let session = currentSession else {
             throw ApplyEngine.ApplyError.nothingToApply
         }
         let rejects = Array(intentLog.assetIDs(with: .reject))
         let keeps = Array(intentLog.assetIDs(with: .keep))
+        // The plan is the pure, testable safety check: a camera session can
+        // never mutate, and an empty or already-clean plan refuses.
+        let plan = try ApplyPlan(
+            rejects: rejects, keeps: keeps,
+            isLibrarySession: session.kind == .library, dryRun: dryRun
+        )
         // Sizes must be read BEFORE the deletion.
         let rejectBytes = Self.totalResourceBytes(forAssetIDs: rejects)
         let keepBytes = Self.totalResourceBytes(forAssetIDs: keeps)
 
-        let summary = try await ApplyEngine().apply(rejects: rejects, keeps: keeps, dryRun: dryRun)
+        let summary = try await ApplyEngine().apply(plan: plan)
         if !dryRun {
             // Applied decisions now live in the Photos library; the rejects
             // are gone from it, so drop them from the session and index too.

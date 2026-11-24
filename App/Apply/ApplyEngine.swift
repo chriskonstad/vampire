@@ -1,3 +1,4 @@
+import CullIntent
 import Photos
 
 /// The only file in the app allowed to mutate the Photos library.
@@ -5,6 +6,10 @@ import Photos
 /// One call, one batched `performChanges`, one system dialog (hard constraint
 /// 1). Rejects are deleted — landing in Recently Deleted, the 30-day safety
 /// net. Keepers are left exactly as they are: no favorite flag, no album.
+///
+/// The caller builds an `ApplyPlan` (pure, unit-tested in VampireCore) and the
+/// engine just performs what that plan says. The engine never re-derives the
+/// decision — it can only check that the IDs actually resolve to assets.
 struct ApplyEngine {
     struct Summary: Sendable {
         let rejectCount: Int
@@ -16,12 +21,12 @@ struct ApplyEngine {
         case nothingToApply
     }
 
-    /// `dryRun` resolves the asset IDs and reports what *would* happen without
-    /// touching the library — exercised in tests and wired to a long-press on
-    /// the Apply button.
-    func apply(rejects: [String], keeps: [String], dryRun: Bool) async throws -> Summary {
-        let rejectAssets = fetchAssets(ids: rejects)
-        let keepAssets = fetchAssets(ids: keeps)
+    /// Performs the batched deletion for a plan that says it mutates the
+    /// library. `dryRun` plans and keeps-only plans resolve the assets and
+    /// report without touching anything.
+    func apply(plan: ApplyPlan) async throws -> Summary {
+        let rejectAssets = fetchAssets(ids: plan.rejects)
+        let keepAssets = fetchAssets(ids: plan.keeps)
 
         guard rejectAssets.count + keepAssets.count > 0 else {
             throw ApplyError.nothingToApply
@@ -30,10 +35,10 @@ struct ApplyEngine {
         let summary = Summary(
             rejectCount: rejectAssets.count,
             keepCount: keepAssets.count,
-            dryRun: dryRun
+            dryRun: plan.dryRun
         )
-        if dryRun || rejectAssets.isEmpty {
-            // Keeps require no library mutation at all.
+        if !plan.mutatesLibrary || rejectAssets.isEmpty {
+            // dryRun, keeps-only, or nothing-resolvable: no library mutation.
             return summary
         }
 

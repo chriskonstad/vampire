@@ -1,15 +1,8 @@
 import Foundation
+import PTP
 import SonyMakerNotes
 import UIKit
 import VampireIndex
-
-extension CameraPhoto {
-    /// Index/journal key for a shot on the card: filename + millisecond
-    /// capture time. Survives reconnects and moving the card between slots
-    /// (Sony content IDs and slots don't), and filenames reused after a
-    /// format/rollover still differ by capture time.
-    var indexID: String { "camera:\(filename)@\(createdUTCms)" }
-}
 
 /// On-disk cache of each camera shot's upright cull preview and grid
 /// thumbnail, in Library/Caches: it survives relaunches and disconnects, so
@@ -31,10 +24,8 @@ final class CameraFrameCache: Sendable {
                 .appendingPathComponent("camera-cache", isDirectory: true))
     }
 
-    /// "camera:DSC05508.ARW@1793247396115" -> "DSC05508.ARW-1793247396115"
     private func fileStem(forIndexID id: String) -> String {
-        String(id.dropFirst("camera:".count)).replacingOccurrences(of: "@", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
+        CameraFrameIdentity.fileStem(forIndexID: id)
     }
 
     func previewURL(forIndexID id: String) -> URL {
@@ -59,13 +50,8 @@ final class CameraFrameCache: Sendable {
         var previews = Set<String>()
         var thumbnails = Set<String>()
         for name in names {
-            // "DSC05508.ARW-1793247396115.thumb.jpg" -> "camera:DSC05508.ARW@1793247396115"
-            let isThumb = name.hasSuffix(".thumb.jpg")
-            guard isThumb || (name.hasSuffix(".jpg") && !name.hasSuffix(".grid.jpg")) else { continue }
-            let stem = name.dropLast(isThumb ? ".thumb.jpg".count : ".jpg".count)
-            guard let dash = stem.lastIndex(of: "-") else { continue }
-            let id = "camera:\(stem[..<dash])@\(stem[stem.index(after: dash)...])"
-            if isThumb { thumbnails.insert(id) } else { previews.insert(id) }
+            guard let entry = CameraFrameIdentity.indexID(forFileName: name) else { continue }
+            if entry.isThumbnail { thumbnails.insert(entry.id) } else { previews.insert(entry.id) }
         }
         return (previews, thumbnails)
     }

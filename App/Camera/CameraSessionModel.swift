@@ -455,14 +455,11 @@ final class CameraSessionModel {
     /// The card listing is the truth: adopt it wholesale (new shots in,
     /// removed shots out, along with their cached pixels).
     private func merge(_ list: [CameraPhoto]) {
-        let known = Set(photos.map(\.indexID))
-        let onCard = Set(list.map(\.indexID))
-        let fresh = list.filter { !known.contains($0.indexID) }
-        let gone = known.subtracting(onCard)
-        photos = list.sorted { $0.createdUTCms < $1.createdUTCms }
+        let result = CardListing.merge(known: photos, list: list)
+        photos = result.photos
         photosByIndexID = Dictionary(photos.map { ($0.indexID, $0) }, uniquingKeysWith: { a, _ in a })
-        forgetFiles(gone)
-        record("\(list.count) on card, \(fresh.count) new, \(gone.count) gone")
+        forgetFiles(result.gone)
+        record("\(list.count) on card, \(result.fresh.count) new, \(result.gone.count) gone")
         onPhotosListed?(photos)
     }
 

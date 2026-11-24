@@ -182,3 +182,50 @@ final class IntentLogTests: XCTestCase {
         XCTAssertEqual(decoded, record)
     }
 }
+
+/// The Apply plan — the safety gate between culling decisions and the
+/// batched deletion. PhotoKit itself is untested (no device), so every
+/// invariant that must hold before `performChanges` runs lives here and is
+/// pinned down with synthetic asset IDs.
+final class ApplyPlanTests: XCTestCase {
+    func testCameraSessionNeverMutates() {
+        // The protocol is what guarantees a card session can't delete.
+        XCTAssertThrowsError(
+            try ApplyPlan(rejects: ["a"], keeps: [], isLibrarySession: false, dryRun: false)
+        ) { error in
+            XCTAssertEqual(error as? ApplyPlanError, .notALibrarySession)
+        }
+    }
+
+    func testEmptyPlanRejected() {
+        XCTAssertThrowsError(
+            try ApplyPlan(rejects: [], keeps: [], isLibrarySession: true, dryRun: false)
+        ) { error in
+            XCTAssertEqual(error as? ApplyPlanError, .nothingToApply)
+        }
+    }
+
+    func testDryRunNeverMutates() {
+        let plan = try! ApplyPlan(rejects: ["a"], keeps: ["k"], isLibrarySession: true, dryRun: true)
+        XCTAssertFalse(plan.mutatesLibrary)
+    }
+
+    func testKeepsOnlyPlanDoesNotMutate() {
+        let plan = try! ApplyPlan(rejects: [], keeps: ["k"], isLibrarySession: true, dryRun: false)
+        XCTAssertFalse(plan.mutatesLibrary)
+        XCTAssertEqual(plan.keeps, ["k"])
+    }
+
+    func testRejectsOnlyPlanMutates() {
+        let plan = try! ApplyPlan(rejects: ["a", "b"], keeps: [], isLibrarySession: true, dryRun: false)
+        XCTAssertTrue(plan.mutatesLibrary)
+        XCTAssertEqual(plan.rejects, ["a", "b"])
+    }
+
+    func testPlanCapturesBothBuckets() {
+        let plan = try! ApplyPlan(rejects: ["a"], keeps: ["k"], isLibrarySession: true, dryRun: true)
+        XCTAssertEqual(plan.rejects, ["a"])
+        XCTAssertEqual(plan.keeps, ["k"])
+        XCTAssertTrue(plan.isLibrarySession)
+    }
+}

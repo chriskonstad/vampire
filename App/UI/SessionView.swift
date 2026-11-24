@@ -30,22 +30,13 @@ struct SessionView: View {
         .modifier(CameraPasswordPrompt(link: model.camera.link))
         #if DEBUG
             // Screenshot/demo hook: `-demo.pagerIndex N` opens the pager on the
-            // Nth photo once the session has that many.
-            .onChange(of: model.items.count) { _, count in
-                let index = UserDefaults.standard.integer(forKey: "demo.pagerIndex") - 1
-                if index >= 0, index < count, pagerIndex == nil, model.imageRevision > 0 {
-                    pagerIndex = PagerDestination(id: index)
-                    UserDefaults.standard.removeObject(forKey: "demo.pagerIndex")
-                }
-            }
-            .onChange(of: model.imageRevision) { _, _ in
-                let index = UserDefaults.standard.integer(forKey: "demo.pagerIndex") - 1
-                if index >= 0, index < model.items.count, pagerIndex == nil,
-                    model.camera.cachedCount == model.items.count
-                {
-                    pagerIndex = PagerDestination(id: index)
-                }
-            }
+            // Nth photo. Fires whenever the session reports readiness: mount,
+            // the card listing landing, or images landing — whether the session
+            // is restored fully cached or is being fetched live.
+            .onAppear { openDemoPager() }
+            .onChange(of: model.items.count) { _, _ in openDemoPager() }
+            .onChange(of: model.imageRevision) { _, _ in openDemoPager() }
+            .onChange(of: model.camera.photos.count) { _, _ in openDemoPager() }
         #endif
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, model.isCameraSession { model.camera.resumeIfNeeded() }
@@ -83,6 +74,19 @@ struct SessionView: View {
                 .presentationDetents([.medium])
         }
     }
+
+    #if DEBUG
+        /// Open the demo pager once the session is ready to show that photo:
+        /// its frames are cached (or already on disk) and there is a valid
+        /// index to open. Idempotent — safe to fire on every readiness change.
+        private func openDemoPager() {
+            let index = UserDefaults.standard.integer(forKey: "demo.pagerIndex") - 1
+            guard index >= 0, index < model.items.count, pagerIndex == nil else { return }
+            guard model.camera.cachedCount >= model.items.count else { return }
+            pagerIndex = PagerDestination(id: index)
+            UserDefaults.standard.removeObject(forKey: "demo.pagerIndex")
+        }
+    #endif
 
     @ViewBuilder
     private var sessionContent: some View {

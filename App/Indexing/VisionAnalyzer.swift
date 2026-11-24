@@ -25,14 +25,11 @@ struct VisionAnalysis {
     var meanLuma: Double?
 
     var closedEyesCount: Int {
-        faces.filter { ($0.eyesOpen ?? 1) < VisionAnalyzer.blinkThreshold }.count
+        SignalAnalysis.closedEyes(faces: faces)
     }
 }
 
 enum VisionAnalyzer {
-    /// Eye-openness below this reads as a blink.
-    static let blinkThreshold = 0.18
-
     static func analyze(cgImage: CGImage, assetID: String, orientation: CGImagePropertyOrientation = .up)
         -> VisionAnalysis
     {
@@ -108,7 +105,7 @@ enum VisionAnalyzer {
 
         let aesthetics = aestheticsRequest.results?.first
         let horizon = horizonRequest.results?.first
-        let exposure = exposureStats(of: cgImage)
+        let exposure = SignalAnalysis.exposureStats(of: cgImage)
 
         var salientRect: SonyMakerNotes.NormalizedRect?
         if let salient = (saliencyRequest.results?.first as? VNSaliencyImageObservation)?.salientObjects,
@@ -163,44 +160,10 @@ enum VisionAnalyzer {
         return height / width
     }
 
-    // MARK: - Exposure (no neural net: works everywhere, simulator included)
+    // MARK: - Exposure
 
-    /// Luma histogram over a 64×64 resample of the preview: fraction of blown
-    /// highlights, crushed shadows, and mean luminance.
-    static func exposureStats(of image: CGImage) -> (clipped: Double, crushed: Double, mean: Double)? {
-        let side = 64
-        guard
-            let context = CGContext(
-                data: nil, width: side, height: side,
-                bitsPerComponent: 8, bytesPerRow: side * 4,
-                space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-            )
-        else { return nil }
-        context.interpolationQuality = .low
-        context.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
-        guard let data = context.data else { return nil }
-
-        let pixels = data.bindMemory(to: UInt8.self, capacity: side * side * 4)
-        var clipped = 0
-        var crushed = 0
-        var total = 0.0
-        let count = side * side
-        for i in 0..<count {
-            let r = Double(pixels[i * 4])
-            let g = Double(pixels[i * 4 + 1])
-            let b = Double(pixels[i * 4 + 2])
-            let luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
-            if luma >= 250 { clipped += 1 }
-            if luma <= 6 { crushed += 1 }
-            total += luma
-        }
-        return (
-            clipped: Double(clipped) / Double(count),
-            crushed: Double(crushed) / Double(count),
-            mean: total / Double(count) / 255.0
-        )
-    }
+    // `exposureStats` lives in VampireIndex (pure, unit-tested there); the
+    // luma histogram is identically shaped.
 
     // MARK: - Matching
 
@@ -216,15 +179,10 @@ enum VisionAnalyzer {
         return index
     }
 
-    /// Intersection-over-union of two normalized rects.
+    /// Intersection-over-union of two normalized rects — pure, delegated to
+    /// `SignalAnalysis` (unit-tested in VampireIndex).
     static func overlapRatio(_ a: CGRect, _ b: CGRect) -> CGFloat {
-        let intersection = a.intersection(b)
-        guard !intersection.isNull, !intersection.isEmpty else { return 0 }
-        let unionArea =
-            a.width * a.height + b.width * b.height
-            - intersection.width * intersection.height
-        guard unionArea > 0 else { return 0 }
-        return (intersection.width * intersection.height) / unionArea
+        SignalAnalysis.overlapRatio(a, b)
     }
 
     /// Extracts the raw vector so distances can be computed offline (pure

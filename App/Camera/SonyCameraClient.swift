@@ -2,29 +2,8 @@ import Foundation
 import PTP
 import SonyMakerNotes
 
-/// One shot on the camera card, as seen over Sony remote transfer. Points at
-/// the RAW file of a RAW+JPEG/HEIF pair when there is one.
-struct CameraPhoto: Identifiable, Hashable, Sendable {
-    let slot: UInt32
-    let contentID: UInt32
-    let fileID: UInt16
-    let filename: String
-    let sizeBytes: UInt64
-    let isRAW: Bool
-    let pixelWidth: Int
-    let pixelHeight: Int
-    let createdUTCms: UInt64
-    /// In-camera star rating / protect — favorites marked while shooting.
-    let rating: Int
-    let isProtected: Bool
-
-    struct ID: Hashable, Sendable {
-        let slot: UInt32
-        let contentID: UInt32
-    }
-    var id: ID { ID(slot: slot, contentID: contentID) }
-    var capturedAt: Date { Date(timeIntervalSince1970: Double(createdUTCms) / 1000) }
-}
+// `CameraPhoto` (and its `indexID`, `capturedAt`) live in the `PTP` package target
+// alongside the rest of the card wire data — pure value types, unit-tested there.
 
 /// High-level camera browsing + selective transfer over Sony's remote-transfer
 /// ops (0x923B–0x923E): the camera UI stays usable while connected. The grid
