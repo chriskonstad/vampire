@@ -23,6 +23,21 @@ An iOS-only app for culling Sony RAW (ARW) photos — either already in the Phot
 
 8. **Never delete anything on the camera.** The PTP layer must never send `DeleteObject` (0x100B) or Sony's content delete (0x9250 — deliberately not even defined). Camera-session "Apply" is Import keepers: additive only; rejects stay on the card.
 
+## The fast loop (run it, don't argue about it)
+
+```bash
+just fast    # ~5s — lint + all tests (172 Swift + 8 Python). Run while you iterate.
+just check   # ~6s warm — lint + tests + full simulator build. Run before you commit.
+```
+
+`just check` is the merge bar. `just test` is Swift + fake-camera tool
+tests; `just lint` is strict swift-format; `just build` is a full SwiftUI/UIKit
+build. Both targets are honest: they gate the gate, nothing else.
+
+Coverage and fixtures live in **AGENTS.md** (also read it): suite-by-suite
+coverage, the Photos-API gap (deliberately untested), the repro-first rule
+for fixes, and where the fake camera stands in for the physical hardware.
+
 ## Testing approach
 
 Three tiers, build the pure ones first:
