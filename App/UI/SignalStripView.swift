@@ -1,5 +1,4 @@
 import SwiftUI
-
 import VampireIndex
 
 /// The HUD strip: glanceable chips for every signal the indexer extracted.
@@ -96,10 +95,12 @@ struct RatingExplainerView: View {
                 Text("\(record.aestheticScore100 ?? 0) / 100")
                     .font(.headline)
             }
-            Text("Apple's on-device aesthetics model — composition, lighting, and subject clarity in one score. The signals below are measured separately by Vampire:")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Apple's on-device aesthetics model — composition, lighting, and subject clarity in one score. The signals below are measured separately by Vampire:"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 5) {
                 ForEach(findings, id: \.text) { finding in
@@ -129,20 +130,25 @@ struct RatingExplainerView: View {
         if record.faceCount > 0 {
             let closed = record.closedEyesCount ?? 0
             if closed > 0 {
-                result.append(Finding(
-                    positive: false,
-                    text: closed == 1 ? "1 face caught mid-blink" : "\(closed) faces caught mid-blink"
-                ))
+                result.append(
+                    Finding(
+                        positive: false,
+                        text: closed == 1 ? "1 face caught mid-blink" : "\(closed) faces caught mid-blink"
+                    ))
             } else {
-                result.append(Finding(positive: true, text: "All \(record.faceCount) face\(record.faceCount == 1 ? "" : "s") have open eyes"))
+                result.append(
+                    Finding(
+                        positive: true,
+                        text: "All \(record.faceCount) face\(record.faceCount == 1 ? "" : "s") have open eyes"))
             }
             if let quality = record.bestFaceQuality {
-                result.append(Finding(
-                    positive: quality >= 0.5,
-                    text: quality >= 0.5
-                        ? "Sharp, well-captured face (\(Int(quality * 100))%)"
-                        : "Best face is soft or awkward (\(Int(quality * 100))%)"
-                ))
+                result.append(
+                    Finding(
+                        positive: quality >= 0.5,
+                        text: quality >= 0.5
+                            ? "Sharp, well-captured face (\(Int(quality * 100))%)"
+                            : "Best face is soft or awkward (\(Int(quality * 100))%)"
+                    ))
             }
         }
 
@@ -166,12 +172,13 @@ struct RatingExplainerView: View {
 
         if let salient = record.salientRect {
             let fraction = Int(salient.width * salient.height * 100)
-            result.append(Finding(
-                positive: fraction >= 8,
-                text: fraction >= 8
-                    ? "Clear subject (fills \(fraction)% of frame)"
-                    : "Small subject (fills \(fraction)% of frame)"
-            ))
+            result.append(
+                Finding(
+                    positive: fraction >= 8,
+                    text: fraction >= 8
+                        ? "Clear subject (fills \(fraction)% of frame)"
+                        : "Small subject (fills \(fraction)% of frame)"
+                ))
         }
 
         if record.isUtility == true {

@@ -13,12 +13,13 @@ enum AssetHeadReader {
     /// metadata. RAW resources are preferred; EXIF JPEGs (Fuji JPEG shooters)
     /// parse the same way via their APP1 segment.
     static func readMetadata(for asset: PHAsset) async -> ARWMetadata? {
-        guard let resource = rawResource(for: asset)
-            ?? PHAssetResource.assetResources(for: asset).first(where: { $0.type == .photo })
+        guard
+            let resource = rawResource(for: asset)
+                ?? PHAssetResource.assetResources(for: asset).first(where: { $0.type == .photo })
         else { return nil }
 
         let options = PHAssetResourceRequestOptions()
-        options.isNetworkAccessAllowed = true // iCloud originals: the head still streams first
+        options.isNetworkAccessAllowed = true  // iCloud originals: the head still streams first
 
         return await withCheckedContinuation { continuation in
             let session = HeadParseSession()
@@ -66,10 +67,10 @@ enum AssetHeadReader {
             (resource.type == .photo || resource.type == .alternatePhoto)
                 && resource.uniformTypeIdentifier.lowercased().contains("raw-image")
         }
-        ?? resources.first { resource in
-            let name = resource.originalFilename.lowercased()
-            return name.hasSuffix(".arw") || name.hasSuffix(".raf")
-        }
+            ?? resources.first { resource in
+                let name = resource.originalFilename.lowercased()
+                return name.hasSuffix(".arw") || name.hasSuffix(".raf")
+            }
     }
 }
 

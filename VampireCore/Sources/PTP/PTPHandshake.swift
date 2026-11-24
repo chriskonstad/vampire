@@ -7,8 +7,10 @@ import Foundation
 public enum PTPHandshake {
     /// 16-byte initiator GUID + host name, UTF-16LE null-terminated, + protocol
     /// version. The GUID just needs to be stable per installation.
-    public static func initCommandRequest(guid: Data, hostName: String,
-                                          protocolVersion: UInt32 = 0x0001_0000) -> PTPIPPacket {
+    public static func initCommandRequest(
+        guid: Data, hostName: String,
+        protocolVersion: UInt32 = 0x0001_0000
+    ) -> PTPIPPacket {
         precondition(guid.count == 16, "PTP/IP GUID must be 16 bytes")
         var w = PTPWriter()
         w.bytes(guid)
@@ -33,8 +35,9 @@ public enum PTPHandshake {
         let guid = try r.bytes(16)
         let name = try r.utf16zString()
         let version = r.remaining >= 4 ? try r.u32() : 0
-        return CommandAck(connectionNumber: conn, cameraGUID: guid,
-                          cameraName: name, protocolVersion: version)
+        return CommandAck(
+            connectionNumber: conn, cameraGUID: guid,
+            cameraName: name, protocolVersion: version)
     }
 
     /// Event channel request: just the connection number from the ack.

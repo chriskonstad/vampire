@@ -25,7 +25,7 @@ public struct PTPReader {
             throw PTPWireError.truncated(needed: count, have: data.count - cursor)
         }
         defer { cursor += count }
-        return data.subdata(in: cursor ..< cursor + count)
+        return data.subdata(in: cursor..<cursor + count)
     }
 
     public mutating func u8() throws -> UInt8 { try bytes(1)[0] }
@@ -54,7 +54,7 @@ public struct PTPReader {
         let raw = try bytes(count * 2)
         var units: [UInt16] = []
         for i in stride(from: 0, to: raw.count, by: 2) {
-            let u = UInt16(raw[i]) | (UInt16(raw[i+1]) << 8)
+            let u = UInt16(raw[i]) | (UInt16(raw[i + 1]) << 8)
             if u == 0 { break }
             units.append(u)
         }
@@ -79,11 +79,17 @@ public struct PTPWriter {
     public init() {}
 
     public mutating func u8(_ v: UInt8) { data.append(v) }
-    public mutating func u16(_ v: UInt16) { data.append(UInt8(v & 0xFF)); data.append(UInt8(v >> 8)) }
+    public mutating func u16(_ v: UInt16) {
+        data.append(UInt8(v & 0xFF))
+        data.append(UInt8(v >> 8))
+    }
     public mutating func u32(_ v: UInt32) {
         for s in stride(from: 0, through: 24, by: 8) { data.append(UInt8((v >> UInt32(s)) & 0xFF)) }
     }
-    public mutating func u64(_ v: UInt64) { u32(UInt32(v & 0xFFFFFFFF)); u32(UInt32(v >> 32)) }
+    public mutating func u64(_ v: UInt64) {
+        u32(UInt32(v & 0xFFFF_FFFF))
+        u32(UInt32(v >> 32))
+    }
     public mutating func bytes(_ d: Data) { data.append(d) }
 
     /// Null-terminated UTF-16LE (init handshake style).

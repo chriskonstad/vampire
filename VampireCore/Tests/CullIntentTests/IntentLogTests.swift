@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import CullIntent
 
 final class IntentLogTests: XCTestCase {
@@ -112,11 +113,11 @@ final class IntentLogTests: XCTestCase {
         log.onAppend = { appended.append($0) }
 
         log.set(.keep, for: "a")
-        log.set(.keep, for: "a") // same verdict again
+        log.set(.keep, for: "a")  // same verdict again
         XCTAssertEqual(appended.count, 1)
         XCTAssertEqual(log.undo(), "a")
         XCTAssertNil(log.verdict(for: "a"))
-        XCTAssertFalse(log.canUndo) // exactly one real mutation happened
+        XCTAssertFalse(log.canUndo)  // exactly one real mutation happened
     }
 
     func testUndoOnEmptyLogIsNil() {
@@ -133,9 +134,9 @@ final class IntentLogTests: XCTestCase {
         log.set(.keep, for: "a")
         log.set(.reject, for: "b")
         log.set(.maybe, for: "b")
-        log.undo()           // b back to .reject
+        log.undo()  // b back to .reject
         log.set(.reject, for: "c")
-        log.undo()           // c cleared, redoable
+        log.undo()  // c cleared, redoable
 
         let restored = IntentLog(replaying: journal)
         XCTAssertEqual(restored.verdicts, ["a": .keep, "b": .reject])
@@ -145,9 +146,9 @@ final class IntentLogTests: XCTestCase {
         // The restored session continues exactly where the old one left off.
         restored.redo()
         XCTAssertEqual(restored.verdict(for: "c"), .reject)
-        restored.undo() // c cleared again
-        restored.undo() // unwinds set(.reject, "b"); the .maybe branch was
-                        // discarded when set(.reject, "c") cleared redo
+        restored.undo()  // c cleared again
+        restored.undo()  // unwinds set(.reject, "b"); the .maybe branch was
+        // discarded when set(.reject, "c") cleared redo
         XCTAssertNil(restored.verdict(for: "b"))
         XCTAssertEqual(restored.verdict(for: "a"), .keep)
     }

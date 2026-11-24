@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import SonyMakerNotes
 
 final class ARWHeadParserTests: XCTestCase {
@@ -140,7 +141,7 @@ final class ARWHeadParserTests: XCTestCase {
     func testUnknownMakerNoteTagsAreCapturedNotFatal() throws {
         let b = TIFFBuilder(endianness: .little)
         let head = TIFFBuilder.sonyARWHead(extraMakerNoteTags: [
-            .init(tag: 0xB000, type: 3, count: 2, payload: b.shortValues([2, 0])),
+            .init(tag: 0xB000, type: 3, count: 2, payload: b.shortValues([2, 0]))
         ])
         let metadata = try ARWHeadParser.parse(head: head)
         XCTAssertEqual(metadata.makerNote?.rawTagValues[0xB000], [2, 0])
@@ -167,7 +168,7 @@ final class ARWHeadParserTests: XCTestCase {
         // A TIFF whose IFD0 points far beyond the cap: keep feeding junk and
         // the session must fail rather than buffer forever.
         var data = Data([0x49, 0x49, 0x2A, 0x00])
-        data.append(contentsOf: [0xFF, 0xFF, 0xFF, 0x0F]) // IFD0 at ~256MB
+        data.append(contentsOf: [0xFF, 0xFF, 0xFF, 0x0F])  // IFD0 at ~256MB
         let session = HeadParseSession(maxHeadLength: 4096)
 
         guard case .needMoreData = session.ingest(data) else {

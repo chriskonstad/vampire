@@ -1,42 +1,82 @@
 import XCTest
+
 @testable import PTP
 
 /// Sony remote-transfer layouts, built byte-for-byte per alpha2go's
 /// docs/protocol.md (a6700-verified).
 final class SonyContentsTests: XCTestCase {
-    private func file(_ w: inout PTPWriter, id: UInt16, path: String, format: UInt32,
-                      size: UInt64, dims: (UInt32, UInt32)?) {
-        w.u16(id); w.u16(0)
+    private func file(
+        _ w: inout PTPWriter, id: UInt16, path: String, format: UInt32,
+        size: UInt64, dims: (UInt32, UInt32)?
+    ) {
+        w.u16(id)
+        w.u16(0)
         let bytes = Data(path.utf8) + [0]
-        w.u32(UInt32(bytes.count)); w.bytes(bytes)
-        w.u32(format); w.u64(size)
-        w.bytes(Data(repeating: 0xAB, count: 32))       // UMID
-        if let (fw, fh) = dims { w.u32(1); w.u32(fw); w.u32(fh) } else { w.u32(0) }
-        w.u32(0); w.u32(0)                               // no video/audio params
+        w.u32(UInt32(bytes.count))
+        w.bytes(bytes)
+        w.u32(format)
+        w.u64(size)
+        w.bytes(Data(repeating: 0xAB, count: 32))  // UMID
+        if let (fw, fh) = dims {
+            w.u32(1)
+            w.u32(fw)
+            w.u32(fh)
+        } else {
+            w.u32(0)
+        }
+        w.u32(0)
+        w.u32(0)  // no video/audio params
     }
 
     private func listReply() -> Data {
         var w = PTPWriter()
-        w.u32(100); w.bytes(Data(repeating: 0, count: 0x90 - 4))
+        w.u32(100)
+        w.bytes(Data(repeating: 0, count: 0x90 - 4))
         w.u32(2)
         // RAW+JPEG pair, rated 3 stars, protected, one shot mark byte.
-        w.u32(1); w.u32(0x0002_0001); w.u32(100); w.u32(4319); w.u32(0); w.u32(0); w.u32(1)
-        w.u64(1_761_700_000_000); w.u64(0); w.u64(0); w.u64(0)
-        w.u32(3); w.u32(1); w.u32(1)
-        w.u32(1); w.u8(7)
-        w.u32(2)
-        file(&w, id: 1, path: "A:/DCIM/100MSDCF/DSC04319.ARW", format: 0xB101,
-             size: 68_603_904, dims: (9504, 6336))
-        file(&w, id: 2, path: "A:/DCIM/100MSDCF/DSC04319.JPG", format: 0x3801,
-             size: 12_000_000, dims: (9504, 6336))
-        // Unrated RAW only.
-        w.u32(1); w.u32(0x0002_0002); w.u32(100); w.u32(4320); w.u32(0); w.u32(0); w.u32(1)
-        w.u64(1_761_700_000_500); w.u64(0); w.u64(0); w.u64(0)
-        w.u32(0); w.u32(0); w.u32(1)
+        w.u32(1)
+        w.u32(0x0002_0001)
+        w.u32(100)
+        w.u32(4319)
+        w.u32(0)
         w.u32(0)
         w.u32(1)
-        file(&w, id: 1, path: "A:/DCIM/100MSDCF/DSC04320.ARW", format: 0xB101,
-             size: 68_000_000, dims: nil)
+        w.u64(1_761_700_000_000)
+        w.u64(0)
+        w.u64(0)
+        w.u64(0)
+        w.u32(3)
+        w.u32(1)
+        w.u32(1)
+        w.u32(1)
+        w.u8(7)
+        w.u32(2)
+        file(
+            &w, id: 1, path: "A:/DCIM/100MSDCF/DSC04319.ARW", format: 0xB101,
+            size: 68_603_904, dims: (9504, 6336))
+        file(
+            &w, id: 2, path: "A:/DCIM/100MSDCF/DSC04319.JPG", format: 0x3801,
+            size: 12_000_000, dims: (9504, 6336))
+        // Unrated RAW only.
+        w.u32(1)
+        w.u32(0x0002_0002)
+        w.u32(100)
+        w.u32(4320)
+        w.u32(0)
+        w.u32(0)
+        w.u32(1)
+        w.u64(1_761_700_000_500)
+        w.u64(0)
+        w.u64(0)
+        w.u64(0)
+        w.u32(0)
+        w.u32(0)
+        w.u32(1)
+        w.u32(0)
+        w.u32(1)
+        file(
+            &w, id: 1, path: "A:/DCIM/100MSDCF/DSC04320.ARW", format: 0xB101,
+            size: 68_000_000, dims: nil)
         return w.data
     }
 

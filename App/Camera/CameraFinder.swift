@@ -16,12 +16,15 @@ import Network
 /// while the phone was on the camera's network, so the finder scanned the
 /// wrong subnet and never tried the camera.
 enum CameraFinder {
-    static func find(preferred: String?, port: UInt16 = 15740,
-                     log: @Sendable (String) -> Void = { _ in }) async -> String? {
+    static func find(
+        preferred: String?, port: UInt16 = 15740,
+        log: @Sendable (String) -> Void = { _ in }
+    ) async -> String? {
         let gateways = await wifiGateways()
         let interfaces = ipv4Interfaces()
-        log("finder: Wi-Fi gateways [\(gateways.joined(separator: ", "))], "
-            + "interfaces [\(interfaces.map { "\($0.name) \(format($0.address))" }.joined(separator: ", "))]")
+        log(
+            "finder: Wi-Fi gateways [\(gateways.joined(separator: ", "))], "
+                + "interfaces [\(interfaces.map { "\($0.name) \(format($0.address))" }.joined(separator: ", "))]")
 
         var solo: [String] = []
         if let preferred, parse(preferred) != nil { solo.append(preferred) }
@@ -33,19 +36,21 @@ enum CameraFinder {
 
         // Sweep the gateway's /24; fall back to the Wi-Fi interface's own.
         let wifiAddress = interfaces.first { $0.name == "en0" }
-        guard let base = gateways.first.flatMap(parse).map({ $0 & 0xFFFF_FF00 })
-                ?? wifiAddress.map({ $0.address & max($0.mask, 0xFFFF_FF00) }) else {
+        guard
+            let base = gateways.first.flatMap(parse).map({ $0 & 0xFFFF_FF00 })
+                ?? wifiAddress.map({ $0.address & max($0.mask, 0xFFFF_FF00) })
+        else {
             log("finder: no Wi-Fi network to scan")
             return nil
         }
         log("finder: scanning \(format(base))/24")
         let own = Set(interfaces.map(\.address))
-        let hosts = (1 ..< 255).map { base | $0 }
+        let hosts = (1..<255).map { base | $0 }
             .filter { !own.contains($0) }
             .map(format)
             .filter { !solo.contains($0) }
         for batch in stride(from: 0, to: hosts.count, by: 48) {
-            let slice = hosts[batch ..< min(batch + 48, hosts.count)]
+            let slice = hosts[batch..<min(batch + 48, hosts.count)]
             let found = await withTaskGroup(of: String?.self) { group -> String? in
                 for host in slice { group.addTask { await isOpen(host, port: port, timeout: 1.5) ? host : nil } }
                 for await result in group where result != nil {
@@ -63,9 +68,9 @@ enum CameraFinder {
     private static func wifiGateways() async -> [String] {
         await withCheckedContinuation { cont in
             #if targetEnvironment(simulator)
-            let monitor = NWPathMonitor()
+                let monitor = NWPathMonitor()
             #else
-            let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
+                let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
             #endif
             let once = FinderOnce()
             monitor.pathUpdateHandler = { path in
@@ -80,7 +85,10 @@ enum CameraFinder {
             }
             monitor.start(queue: .global(qos: .userInitiated))
             DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) {
-                if once.claim() { monitor.cancel(); cont.resume(returning: []) }
+                if once.claim() {
+                    monitor.cancel()
+                    cont.resume(returning: [])
+                }
             }
         }
     }
@@ -94,7 +102,7 @@ enum CameraFinder {
     private static func isOpen(_ host: String, port: UInt16, timeout: Double) async -> Bool {
         let params = NWParameters.tcp
         #if !targetEnvironment(simulator)
-        params.requiredInterfaceType = .wifi  // the simulator's network isn't typed Wi-Fi
+            params.requiredInterfaceType = .wifi  // the simulator's network isn't typed Wi-Fi
         #endif
         let conn = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: params)
         return await withCheckedContinuation { cont in
@@ -102,9 +110,15 @@ enum CameraFinder {
             conn.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
-                    if once.claim() { conn.cancel(); cont.resume(returning: true) }
+                    if once.claim() {
+                        conn.cancel()
+                        cont.resume(returning: true)
+                    }
                 case .failed, .cancelled:
-                    if once.claim() { conn.cancel(); cont.resume(returning: false) }
+                    if once.claim() {
+                        conn.cancel()
+                        cont.resume(returning: false)
+                    }
                 case .waiting:
                     // Not a "no": a Wi-Fi-pinned connection often reports
                     // waiting("Network is down") for a beat before going
@@ -117,7 +131,10 @@ enum CameraFinder {
             }
             conn.start(queue: .global(qos: .userInitiated))
             DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-                if once.claim() { conn.cancel(); cont.resume(returning: false) }
+                if once.claim() {
+                    conn.cancel()
+                    cont.resume(returning: false)
+                }
             }
         }
     }
@@ -131,10 +148,15 @@ enum CameraFinder {
         for ptr in sequence(first: first, next: { $0.pointee.ifa_next }) {
             let ifa = ptr.pointee
             guard ifa.ifa_flags & UInt32(IFF_UP) != 0,
-                  let addr = ifa.ifa_addr, addr.pointee.sa_family == UInt8(AF_INET),
-                  let mask = ifa.ifa_netmask else { continue }
-            let a = addr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { UInt32(bigEndian: $0.pointee.sin_addr.s_addr) }
-            let m = mask.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { UInt32(bigEndian: $0.pointee.sin_addr.s_addr) }
+                let addr = ifa.ifa_addr, addr.pointee.sa_family == UInt8(AF_INET),
+                let mask = ifa.ifa_netmask
+            else { continue }
+            let a = addr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
+                UInt32(bigEndian: $0.pointee.sin_addr.s_addr)
+            }
+            let m = mask.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
+                UInt32(bigEndian: $0.pointee.sin_addr.s_addr)
+            }
             if a >> 24 == 127 || a >> 16 == 0xA9FE { continue }  // loopback, link-local
             out.append((String(cString: ifa.ifa_name), a, m))
         }
@@ -156,7 +178,8 @@ private final class FinderOnce: @unchecked Sendable {
     private let lock = NSLock()
     private var done = false
     func claim() -> Bool {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         if done { return false }
         done = true
         return true

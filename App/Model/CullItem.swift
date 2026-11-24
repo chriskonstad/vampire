@@ -37,8 +37,10 @@ protocol CullImageProvider: AnyObject {
     /// Screen-size image for the pager. `isFinal` false = a degraded
     /// placeholder that a better image will follow. Returns a cancel action.
     @discardableResult
-    func requestPreview(for item: CullItem, targetSize: CGSize,
-                        _ handler: @escaping (_ image: UIImage?, _ isFinal: Bool) -> Void) -> (() -> Void)?
+    func requestPreview(
+        for item: CullItem, targetSize: CGSize,
+        _ handler: @escaping (_ image: UIImage?, _ isFinal: Bool) -> Void
+    ) -> (() -> Void)?
 
     func startCaching(_ items: [CullItem], targetSize: CGSize)
     func stopCaching(_ items: [CullItem], targetSize: CGSize)
@@ -82,23 +84,32 @@ final class LibraryImageProvider: CullImageProvider {
     func requestThumbnail(for item: CullItem, targetSize: CGSize, _ handler: @escaping (UIImage?) -> Void) {
         guard let asset = item.asset else { return handler(nil) }
         let options = PHImageRequestOptions()
-        options.deliveryMode = .opportunistic // degraded instantly, refined later
+        options.deliveryMode = .opportunistic  // degraded instantly, refined later
         options.resizeMode = .fast
         options.isNetworkAccessAllowed = true
-        imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFill,
-                                  options: options) { image, _ in handler(image) }
+        imageManager.requestImage(
+            for: asset, targetSize: targetSize, contentMode: .aspectFill,
+            options: options
+        ) { image, _ in handler(image) }
     }
 
-    func requestPreview(for item: CullItem, targetSize: CGSize,
-                        _ handler: @escaping (UIImage?, Bool) -> Void) -> (() -> Void)? {
-        guard let asset = item.asset else { handler(nil, true); return nil }
+    func requestPreview(
+        for item: CullItem, targetSize: CGSize,
+        _ handler: @escaping (UIImage?, Bool) -> Void
+    ) -> (() -> Void)? {
+        guard let asset = item.asset else {
+            handler(nil, true)
+            return nil
+        }
         let options = PHImageRequestOptions()
         options.deliveryMode = .opportunistic
         options.resizeMode = .fast
         options.isNetworkAccessAllowed = true
         let manager = imageManager
-        let requestID = manager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit,
-                                             options: options) { image, info in
+        let requestID = manager.requestImage(
+            for: asset, targetSize: targetSize, contentMode: .aspectFit,
+            options: options
+        ) { image, info in
             let degraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
             handler(image, !degraded)
         }
@@ -106,13 +117,15 @@ final class LibraryImageProvider: CullImageProvider {
     }
 
     func startCaching(_ items: [CullItem], targetSize: CGSize) {
-        imageManager.startCachingImages(for: items.compactMap(\.asset), targetSize: targetSize,
-                                        contentMode: .aspectFill, options: nil)
+        imageManager.startCachingImages(
+            for: items.compactMap(\.asset), targetSize: targetSize,
+            contentMode: .aspectFill, options: nil)
     }
 
     func stopCaching(_ items: [CullItem], targetSize: CGSize) {
-        imageManager.stopCachingImages(for: items.compactMap(\.asset), targetSize: targetSize,
-                                       contentMode: .aspectFill, options: nil)
+        imageManager.stopCachingImages(
+            for: items.compactMap(\.asset), targetSize: targetSize,
+            contentMode: .aspectFill, options: nil)
     }
 
     func stopCachingAll() {
@@ -154,20 +167,32 @@ final class CameraImageProvider: CullImageProvider {
         let key = item.id
         if let image = thumbs.object(forKey: key as NSString) { return handler(image) }
         if let image = camera.memoryThumbnail(forIndexID: key) { handler(image) }
-        if thumbWaiters[key] != nil { thumbWaiters[key]!.append(handler); return }
+        if thumbWaiters[key] != nil {
+            thumbWaiters[key]!.append(handler)
+            return
+        }
         let preview = camera.previewURL(forIndexID: key)
-        let sonyThumb = camera.hasThumbnail(forIndexID: key) ? CameraFrameCache.shared.thumbnailURL(forIndexID: key) : nil
+        let sonyThumb =
+            camera.hasThumbnail(forIndexID: key) ? CameraFrameCache.shared.thumbnailURL(forIndexID: key) : nil
         guard preview != nil || sonyThumb != nil else { return }
         thumbWaiters[key] = [handler]
         let grid = CameraFrameCache.shared.gridURL(forIndexID: key)
-        thumbQueue.append((key, {
-            if let image = Downsampler.decode(url: grid, maxPixelSize: CameraFrameCache.gridPixelSize) { return image }
-            if let preview, let image = Downsampler.decode(url: preview, maxPixelSize: CameraFrameCache.gridPixelSize) {
-                try? image.jpegData(compressionQuality: 0.8)?.write(to: grid, options: .atomic)
-                return image
-            }
-            return sonyThumb.flatMap { Downsampler.decode(url: $0, maxPixelSize: 400) }
-        }))
+        thumbQueue.append(
+            (
+                key,
+                {
+                    if let image = Downsampler.decode(url: grid, maxPixelSize: CameraFrameCache.gridPixelSize) {
+                        return image
+                    }
+                    if let preview,
+                        let image = Downsampler.decode(url: preview, maxPixelSize: CameraFrameCache.gridPixelSize)
+                    {
+                        try? image.jpegData(compressionQuality: 0.8)?.write(to: grid, options: .atomic)
+                        return image
+                    }
+                    return sonyThumb.flatMap { Downsampler.decode(url: $0, maxPixelSize: 400) }
+                }
+            ))
         if thumbQueue.count > 240 {
             // Scrolled far past these; drop them (re-requested on return).
             for dropped in thumbQueue.prefix(thumbQueue.count - 240) { thumbWaiters[dropped.key] = nil }
@@ -193,8 +218,10 @@ final class CameraImageProvider: CullImageProvider {
         }
     }
 
-    func requestPreview(for item: CullItem, targetSize: CGSize,
-                        _ handler: @escaping (UIImage?, Bool) -> Void) -> (() -> Void)? {
+    func requestPreview(
+        for item: CullItem, targetSize: CGSize,
+        _ handler: @escaping (UIImage?, Bool) -> Void
+    ) -> (() -> Void)? {
         let key = item.id
         if let image = decoded.object(forKey: key as NSString) {
             handler(image, true)
@@ -207,7 +234,10 @@ final class CameraImageProvider: CullImageProvider {
             handler(camera.memoryThumbnail(forIndexID: key) ?? thumbs.object(forKey: key as NSString), true)
             return nil
         }
-        if previewWaiters[key] != nil { previewWaiters[key]!.append(handler); return nil }
+        if previewWaiters[key] != nil {
+            previewWaiters[key]!.append(handler)
+            return nil
+        }
         previewWaiters[key] = [handler]
         let side = max(targetSize.width, targetSize.height)
         Task {

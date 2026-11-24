@@ -5,7 +5,7 @@ let package = Package(
     name: "VampireCore",
     platforms: [
         .iOS(.v17),
-        .macOS(.v14), // pure-logic targets unit-test on macOS; no device needed
+        .macOS(.v14),  // pure-logic targets unit-test on macOS; no device needed
     ],
     products: [
         .library(name: "SonyMakerNotes", targets: ["SonyMakerNotes"]),
@@ -16,7 +16,7 @@ let package = Package(
         .library(name: "PTP", targets: ["PTP"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.29.0"),
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.29.0")
     ],
     targets: [
         // Sony ARW head-of-file parser: TIFF/IFD walk + MakerNotes (FocusLocation 0x2027).

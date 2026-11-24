@@ -1,5 +1,5 @@
-import SwiftUI
 import Photos
+import SwiftUI
 
 @main
 struct VampireApp: App {
@@ -9,7 +9,7 @@ struct VampireApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
-                .preferredColorScheme(.dark) // culling happens in the dark
+                .preferredColorScheme(.dark)  // culling happens in the dark
         }
     }
 }
@@ -22,7 +22,7 @@ struct RootView: View {
         case .authorized, .limited:
             SessionListView()
                 #if DEBUG
-                .task { await DevFixtureImporter.importPending() }
+                    .task { await DevFixtureImporter.importPending() }
                 #endif
         case .notDetermined:
             AuthPromptView()

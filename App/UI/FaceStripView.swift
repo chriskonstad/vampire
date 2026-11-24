@@ -1,5 +1,4 @@
 import SwiftUI
-
 import VampireIndex
 
 /// Quality-ranked face crops for the current frame. Crops are cut from the
@@ -80,9 +79,9 @@ struct FaceStripView: View {
 
     private func loadCrops() async -> [FaceCrop] {
         guard let assetID,
-              let store = model.store,
-              let faces = try? store.faces(forAsset: assetID), !faces.isEmpty,
-              let item = model.items.first(where: { $0.id == assetID })
+            let store = model.store,
+            let faces = try? store.faces(forAsset: assetID), !faces.isEmpty,
+            let item = model.items.first(where: { $0.id == assetID })
         else { return [] }
 
         // The face under the AF box — the one the camera focused on — leads
@@ -93,7 +92,8 @@ struct FaceStripView: View {
             return afRect.intersects(CGRect(x: face.x, y: face.y, width: face.width, height: face.height))
         }
         let ranked = faces.sorted { a, b in
-            let aAF = intersectsAF(a), bAF = intersectsAF(b)
+            let aAF = intersectsAF(a)
+            let bAF = intersectsAF(b)
             if aAF != bAF { return aAF }
             return (a.captureQuality ?? 0) > (b.captureQuality ?? 0)
         }
@@ -103,7 +103,8 @@ struct FaceStripView: View {
         // over as a sideways bitmap + orientation, so draw upright first or
         // the crops come from the wrong place.
         guard let image = await model.imageProvider.preview(for: item, targetSize: CGSize(width: 640, height: 640)),
-              let cgImage = Self.upright(image).cgImage else { return [] }
+            let cgImage = Self.upright(image).cgImage
+        else { return [] }
 
         let width = CGFloat(cgImage.width)
         let height = CGFloat(cgImage.height)
@@ -150,7 +151,7 @@ struct QualityDots: View {
 
     var body: some View {
         HStack(spacing: 1.5) {
-            ForEach(0 ..< 5, id: \.self) { i in
+            ForEach(0..<5, id: \.self) { i in
                 Circle()
                     .fill(Double(i) / 5.0 < quality ? Color.green : Color.gray.opacity(0.4))
                     .frame(width: 3.5, height: 3.5)

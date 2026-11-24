@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import SonyMakerNotes
 
 /// Runs the parser against real A7RV ARW files in `fixtures/` at the repo root.
@@ -25,17 +26,18 @@ final class RealFixtureTests: XCTestCase {
 
     static var fixturesURL: URL {
         URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // strip RealFixtureTests.swift
-            .deletingLastPathComponent() // strip SonyMakerNotesTests/
-            .deletingLastPathComponent() // strip Tests/
-            .deletingLastPathComponent() // strip VampireCore/ → repo root
+            .deletingLastPathComponent()  // strip RealFixtureTests.swift
+            .deletingLastPathComponent()  // strip SonyMakerNotesTests/
+            .deletingLastPathComponent()  // strip Tests/
+            .deletingLastPathComponent()  // strip VampireCore/ → repo root
             .appendingPathComponent("fixtures")
     }
 
     func testRealFixtures() throws {
-        let fixtures = (try? FileManager.default.contentsOfDirectory(
-            at: Self.fixturesURL, includingPropertiesForKeys: nil
-        ))?.filter { Self.fixtureExtensions.contains($0.pathExtension.lowercased()) } ?? []
+        let fixtures =
+            (try? FileManager.default.contentsOfDirectory(
+                at: Self.fixturesURL, includingPropertiesForKeys: nil
+            ))?.filter { Self.fixtureExtensions.contains($0.pathExtension.lowercased()) } ?? []
 
         try XCTSkipIf(fixtures.isEmpty, "no camera fixtures in fixtures/ — add real files to enable")
 
@@ -88,12 +90,13 @@ final class RealFixtureTests: XCTestCase {
     /// Replay that exact flow against the real file: HeadParseSession must
     /// finish well inside the head, on a chunk boundary mid-file.
     func testRealFixtureParsesViaStreamingSession() throws {
-        let fixtures = (try? FileManager.default.contentsOfDirectory(
-            at: Self.fixturesURL, includingPropertiesForKeys: nil
-        ))?.filter { Self.fixtureExtensions.contains($0.pathExtension.lowercased()) } ?? []
+        let fixtures =
+            (try? FileManager.default.contentsOfDirectory(
+                at: Self.fixturesURL, includingPropertiesForKeys: nil
+            ))?.filter { Self.fixtureExtensions.contains($0.pathExtension.lowercased()) } ?? []
         try XCTSkipIf(fixtures.isEmpty, "no camera fixtures")
 
-        let chunkSize = 64 * 1024 // PHAssetResourceManager delivers chunks of this order
+        let chunkSize = 64 * 1024  // PHAssetResourceManager delivers chunks of this order
         for url in fixtures {
             let handle = try FileHandle(forReadingFrom: url)
             defer { try? handle.close() }

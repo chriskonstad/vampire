@@ -12,7 +12,7 @@ public enum PTPDataset {
         }
         var out: [UInt32] = []
         out.reserveCapacity(count)
-        for _ in 0 ..< count { out.append(try r.u32()) }
+        for _ in 0..<count { out.append(try r.u32()) }
         return out
     }
 }
@@ -22,7 +22,7 @@ public enum PTPDataset {
 public struct PTPObjectInfo: Equatable {
     public let storageID: UInt32
     public let objectFormat: UInt16
-    public let compressedSize: UInt32   // file size in bytes (0xFFFFFFFF if >4GB)
+    public let compressedSize: UInt32  // file size in bytes (0xFFFFFFFF if >4GB)
     public let thumbFormat: UInt16
     public let thumbCompressedSize: UInt32
     public let imagePixWidth: UInt32
@@ -42,30 +42,35 @@ public struct PTPObjectInfo: Equatable {
         var r = PTPReader(data)
         storageID = try r.u32()
         objectFormat = try r.u16()
-        _ = try r.u16()                 // protection status
+        _ = try r.u16()  // protection status
         compressedSize = try r.u32()
         thumbFormat = try r.u16()
         thumbCompressedSize = try r.u32()
-        _ = try r.u32()                 // thumb pix width
-        _ = try r.u32()                 // thumb pix height
+        _ = try r.u32()  // thumb pix width
+        _ = try r.u32()  // thumb pix height
         imagePixWidth = try r.u32()
         imagePixHeight = try r.u32()
-        _ = try r.u32()                 // image bit depth
-        _ = try r.u32()                 // parent object
-        _ = try r.u16()                 // association type
-        _ = try r.u32()                 // association description
-        _ = try r.u32()                 // sequence number
+        _ = try r.u32()  // image bit depth
+        _ = try r.u32()  // parent object
+        _ = try r.u16()  // association type
+        _ = try r.u32()  // association description
+        _ = try r.u32()  // sequence number
         filename = try r.ptpString()
         // Capture date / modification date / keywords follow; unused.
     }
 
-    public init(storageID: UInt32, objectFormat: UInt16, compressedSize: UInt32,
-                thumbFormat: UInt16 = 0, thumbCompressedSize: UInt32 = 0,
-                imagePixWidth: UInt32 = 0, imagePixHeight: UInt32 = 0, filename: String) {
-        self.storageID = storageID; self.objectFormat = objectFormat
-        self.compressedSize = compressedSize; self.thumbFormat = thumbFormat
+    public init(
+        storageID: UInt32, objectFormat: UInt16, compressedSize: UInt32,
+        thumbFormat: UInt16 = 0, thumbCompressedSize: UInt32 = 0,
+        imagePixWidth: UInt32 = 0, imagePixHeight: UInt32 = 0, filename: String
+    ) {
+        self.storageID = storageID
+        self.objectFormat = objectFormat
+        self.compressedSize = compressedSize
+        self.thumbFormat = thumbFormat
         self.thumbCompressedSize = thumbCompressedSize
-        self.imagePixWidth = imagePixWidth; self.imagePixHeight = imagePixHeight
+        self.imagePixWidth = imagePixWidth
+        self.imagePixHeight = imagePixHeight
         self.filename = filename
     }
 }

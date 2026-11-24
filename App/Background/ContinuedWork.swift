@@ -42,7 +42,8 @@ final class ContinuedWork {
         let identifier = "\(Self.identifierPrefix).\(UUID().uuidString)"
         // Continued-processing handlers may be registered at any time (they're
         // exempt from the before-launch-finishes rule) — once per identifier.
-        let registered = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: .main) { [weak self] task in
+        let registered = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: .main) {
+            [weak self] task in
             MainActor.assumeIsolated {
                 guard let self, let task = task as? BGContinuedProcessingTask else {
                     task.setTaskCompleted(success: false)
@@ -63,7 +64,10 @@ final class ContinuedWork {
     }
 
     private func attach(_ task: BGContinuedProcessingTask) {
-        guard !finished else { task.setTaskCompleted(success: true); return }
+        guard !finished else {
+            task.setTaskCompleted(success: true)
+            return
+        }
         self.task = task
         task.progress.totalUnitCount = progress.totalUnitCount
         task.progress.completedUnitCount = progress.completedUnitCount

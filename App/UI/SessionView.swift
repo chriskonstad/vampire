@@ -1,9 +1,8 @@
-import SwiftUI
-import Photos
-import PhotosUI
-
 import BurstClustering
 import CullIntent
+import Photos
+import PhotosUI
+import SwiftUI
 
 /// An open culling session: grid of its photos (newest first), indexing
 /// status, undo/redo, add-photos, Apply. Presented full-screen over the
@@ -16,7 +15,7 @@ struct SessionView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
-    @State private var pagerIndex: Int?
+    @State private var pagerIndex: PagerDestination?
     @State private var applyError: String?
     @State private var confirmingApply = false
     @State private var applyResult: AppModel.ApplyResult?
@@ -25,43 +24,28 @@ struct SessionView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if model.isCameraSession && model.items.isEmpty {
-                    CameraConnectPanel(camera: model.camera)
-                } else {
-                    GridView(pagerIndex: $pagerIndex, revision: model.verdictRevision,
-                             imageRevision: model.imageRevision)
-                        .ignoresSafeArea(edges: .bottom)
-                }
-            }
-                .navigationTitle(model.currentSession?.name ?? "Session")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { toolbarContent }
-                .overlay(alignment: .bottom) { statusBar }
-                .fullScreenCover(item: $pagerIndex) { index in
-                    // Grid index → photo: both read the session's one order.
-                    PagerView(startPhotoID: model.orderedItems.indices.contains(index) ? model.orderedItems[index].id : nil,
-                              order: model.order, provider: model.imageProvider)
-                }
+            sessionContent
         }
         .preferredColorScheme(.dark)
         .modifier(CameraPasswordPrompt(link: model.camera.link))
         #if DEBUG
-        // Screenshot/demo hook: `-demo.pagerIndex N` opens the pager on the
-        // Nth photo once the session has that many.
-        .onChange(of: model.items.count) { _, count in
-            let index = UserDefaults.standard.integer(forKey: "demo.pagerIndex") - 1
-            if index >= 0, index < count, pagerIndex == nil, model.imageRevision > 0 {
-                pagerIndex = index
-                UserDefaults.standard.removeObject(forKey: "demo.pagerIndex")
+            // Screenshot/demo hook: `-demo.pagerIndex N` opens the pager on the
+            // Nth photo once the session has that many.
+            .onChange(of: model.items.count) { _, count in
+                let index = UserDefaults.standard.integer(forKey: "demo.pagerIndex") - 1
+                if index >= 0, index < count, pagerIndex == nil, model.imageRevision > 0 {
+                    pagerIndex = PagerDestination(id: index)
+                    UserDefaults.standard.removeObject(forKey: "demo.pagerIndex")
+                }
             }
-        }
-        .onChange(of: model.imageRevision) { _, _ in
-            let index = UserDefaults.standard.integer(forKey: "demo.pagerIndex") - 1
-            if index >= 0, index < model.items.count, pagerIndex == nil, model.camera.cachedCount == model.items.count {
-                pagerIndex = index
+            .onChange(of: model.imageRevision) { _, _ in
+                let index = UserDefaults.standard.integer(forKey: "demo.pagerIndex") - 1
+                if index >= 0, index < model.items.count, pagerIndex == nil,
+                    model.camera.cachedCount == model.items.count
+                {
+                    pagerIndex = PagerDestination(id: index)
+                }
             }
-        }
         #endif
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, model.isCameraSession { model.camera.resumeIfNeeded() }
@@ -85,7 +69,9 @@ struct SessionView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             let counts = model.verdictCounts
-            Text("^[\(counts[.reject, default: 0]) reject](inflect: true) → Recently Deleted. ^[\(counts[.keep, default: 0]) keeper](inflect: true) stay untouched in your library. One confirmation will follow.")
+            Text(
+                "^[\(counts[.reject, default: 0]) reject](inflect: true) → Recently Deleted. ^[\(counts[.keep, default: 0]) keeper](inflect: true) stay untouched in your library. One confirmation will follow."
+            )
         }
         .alert("Apply failed", isPresented: .constant(applyError != nil)) {
             Button("OK") { applyError = nil }
@@ -98,11 +84,37 @@ struct SessionView: View {
         }
     }
 
+    @ViewBuilder
+    private var sessionContent: some View {
+        Group {
+            if model.isCameraSession && model.items.isEmpty {
+                CameraConnectPanel(camera: model.camera)
+            } else {
+                GridView(
+                    pagerIndex: $pagerIndex, revision: model.verdictRevision,
+                    imageRevision: model.imageRevision
+                )
+                .ignoresSafeArea(edges: .bottom)
+            }
+        }
+        .navigationTitle(model.currentSession?.name ?? "Session")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { toolbarContent }
+        .overlay(alignment: .bottom) { statusBar }
+        .fullScreenCover(item: $pagerIndex) { destination in
+            // Grid index → photo: both read the session's one order.
+            let index = destination.id
+            PagerView(
+                startPhotoID: model.orderedItems.indices.contains(index) ? model.orderedItems[index].id : nil,
+                order: model.order, provider: model.imageProvider)
+        }
+    }
+
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button {
-                dismiss() // cover binding closes the session
+                dismiss()  // cover binding closes the session
             } label: {
                 Label("Sessions", systemImage: "chevron.left")
                     .labelStyle(.titleAndIcon)
@@ -151,17 +163,22 @@ struct SessionView: View {
     /// Session order, for the grid and the pager alike.
     private var sortMenu: some View {
         Menu {
-            Picker("Order", selection: Binding(
-                get: { model.orderSettings.direction },
-                set: { model.orderSettings.direction = $0 }
-            )) {
+            Picker(
+                "Order",
+                selection: Binding(
+                    get: { model.orderSettings.direction },
+                    set: { model.orderSettings.direction = $0 }
+                )
+            ) {
                 Label("Newest First", systemImage: "arrow.down").tag(TimeDirection.newestFirst)
                 Label("Oldest First", systemImage: "arrow.up").tag(TimeDirection.oldestFirst)
             }
-            Toggle(isOn: Binding(
-                get: { model.orderSettings.bestFirst },
-                set: { model.orderSettings.bestFirst = $0 }
-            )) {
+            Toggle(
+                isOn: Binding(
+                    get: { model.orderSettings.bestFirst },
+                    set: { model.orderSettings.bestFirst = $0 }
+                )
+            ) {
                 Label("Best Frame First in Bursts", systemImage: "star")
             }
         } label: {
@@ -174,7 +191,8 @@ struct SessionView: View {
         let progress = model.indexingProgress
         return VStack(spacing: 6) {
             if model.isCameraSession {
-                CameraStatusRow(camera: model.camera, itemIDs: model.items.map(\.id), showsConnect: !model.items.isEmpty)
+                CameraStatusRow(
+                    camera: model.camera, itemIDs: model.items.map(\.id), showsConnect: !model.items.isEmpty)
             }
             // Indexing progress: visible bar while the pass runs, gone when
             // done. Informational only — browsing is never gated on it.
@@ -274,6 +292,8 @@ struct ApplySummaryView: View {
     }
 }
 
-extension Int: @retroactive Identifiable {
-    public var id: Int { self }
+/// The grid index the pager should open on, as a value type — `Int` is not
+/// `Identifiable`, and a plain `@retroactive` conformance trips lint.
+struct PagerDestination: Identifiable {
+    let id: Int
 }

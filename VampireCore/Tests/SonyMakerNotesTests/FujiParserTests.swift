@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import SonyMakerNotes
 
 final class FujiParserTests: XCTestCase {
@@ -42,7 +43,7 @@ final class FujiParserTests: XCTestCase {
     func testTruncatedFujiHeadAsksForMore() {
         let full = TIFFBuilder.rafContainer(wrapping: TIFFBuilder.fujiJPEGHead())
         let session = HeadParseSession()
-        let mid = 100 // inside the RAF header, before the embedded JPEG
+        let mid = 100  // inside the RAF header, before the embedded JPEG
         guard case .needMoreData = session.ingest(full.prefix(mid)) else {
             return XCTFail("partial RAF head should ask for more")
         }

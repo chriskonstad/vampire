@@ -38,7 +38,7 @@ struct ByteReader {
         guard offset + count <= data.count else {
             throw ARWParseError.truncated(needed: offset + count)
         }
-        return data.subdata(in: offset ..< offset + count)
+        return data.subdata(in: offset..<offset + count)
     }
 
     func uint8(at offset: Int) throws -> UInt8 {

@@ -66,14 +66,17 @@ public struct CullOrder: Equatable, Sendable {
     ///   - best: burst ID → the frame to lead with when `bestFirst`.
     ///   - pinned: a stack whose frame order must not change (the one on
     ///     screen): its known frames keep their order, new ones follow.
-    public init(photos: [(id: String, date: Date?)], bursts: [(id: String, memberIDs: [String])],
-                settings: OrderSettings, best: [String: String] = [:], pinned: CullStack? = nil) {
+    public init(
+        photos: [(id: String, date: Date?)], bursts: [(id: String, memberIDs: [String])],
+        settings: OrderSettings, best: [String: String] = [:], pinned: CullStack? = nil
+    ) {
         let date = Dictionary(photos.map { ($0.id, $0.date ?? .distantPast) }, uniquingKeysWith: { a, _ in a })
         let newestFirst = settings.direction == .newestFirst
         // Time order with a stable tie-break, so equal timestamps never
         // shuffle between rebuilds.
         func before(_ a: String, _ b: String) -> Bool {
-            let da = date[a]!, db = date[b]!
+            let da = date[a]!
+            let db = date[b]!
             if da != db { return newestFirst ? da > db : da < db }
             return newestFirst ? a > b : a < b
         }
@@ -93,10 +96,12 @@ public struct CullOrder: Equatable, Sendable {
             let lead = members[0]  // time position of the stack, before best-first
             if let pinned, pinned.id == group.id {
                 let rank = Dictionary(pinned.memberIDs.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
-                members = members.filter { rank[$0] != nil }.sorted { rank[$0]! < rank[$1]! }
+                members =
+                    members.filter { rank[$0] != nil }.sorted { rank[$0]! < rank[$1]! }
                     + members.filter { rank[$0] == nil }
             } else if settings.bestFirst, let bestID = best[group.id],
-                      let index = members.firstIndex(of: bestID), index > 0 {
+                let index = members.firstIndex(of: bestID), index > 0
+            {
                 members.insert(members.remove(at: index), at: 0)
             }
             stacks.append((lead, CullStack(id: group.id, memberIDs: members)))
@@ -139,7 +144,7 @@ public struct CullOrder: Equatable, Sendable {
         guard let location = locations[photoID] else { return nil }
         // Members before this stack, plus the member's own position.
         var index = location.member
-        for s in 0 ..< location.stack { index += stacks[s].memberIDs.count }
+        for s in 0..<location.stack { index += stacks[s].memberIDs.count }
         return index
     }
 
@@ -171,7 +176,7 @@ public struct CullOrder: Equatable, Sendable {
     public func neighborhood(of photoID: String, radius: Int) -> [String] {
         guard let center = flatIndex(of: photoID) else { return [] }
         var result = [flat[center]]
-        for distance in 1 ... max(radius, 1) {
+        for distance in 1...max(radius, 1) {
             if center + distance < flat.count { result.append(flat[center + distance]) }
             if center - distance >= 0 { result.append(flat[center - distance]) }
         }

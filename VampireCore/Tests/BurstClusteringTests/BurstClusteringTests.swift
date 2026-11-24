@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import BurstClustering
 
 final class BurstClusteringTests: XCTestCase {
@@ -12,7 +13,7 @@ final class BurstClusteringTests: XCTestCase {
 
     func testTenFPSBurstGroupsTogether() {
         // 10fps drive: 100ms apart — well under the 2s threshold.
-        let assets = (0 ..< 10).map { asset("burst-\($0)", at: Double($0) * 0.1) }
+        let assets = (0..<10).map { asset("burst-\($0)", at: Double($0) * 0.1) }
         let groups = BurstClusterer.cluster(assets)
         XCTAssertEqual(groups.count, 1)
         XCTAssertEqual(groups[0].count, 10)
@@ -39,11 +40,11 @@ final class BurstClusteringTests: XCTestCase {
         // total span doesn't matter — 20 frames 0.6s apart (11.4s end to end)
         // are one burst at a 1s threshold; a single 1.2s gap breaks the chain.
         let params = ClusteringParameters(timeGapThreshold: 1.0)
-        let chain = (0 ..< 20).map { asset("c\($0)", at: Double($0) * 0.6) }
+        let chain = (0..<20).map { asset("c\($0)", at: Double($0) * 0.6) }
         XCTAssertEqual(BurstClusterer.cluster(chain, parameters: params).count, 1)
 
-        var broken = (0 ..< 10).map { asset("a\($0)", at: Double($0) * 0.6) }
-        broken += (0 ..< 10).map { asset("b\($0)", at: 5.4 + 1.2 + Double($0) * 0.6) }
+        var broken = (0..<10).map { asset("a\($0)", at: Double($0) * 0.6) }
+        broken += (0..<10).map { asset("b\($0)", at: 5.4 + 1.2 + Double($0) * 0.6) }
         let groups = BurstClusterer.cluster(broken, parameters: params)
         XCTAssertEqual(groups.map(\.count), [10, 10])
     }
@@ -61,7 +62,7 @@ final class BurstClusteringTests: XCTestCase {
     func testSceneChangeSplitsTimeCluster() {
         // Continuous shooting but the subject changed mid-burst.
         let sceneA: [Float] = [1, 0, 0, 0]
-        let sceneB: [Float] = [0, 1, 0, 0] // distance √2 ≈ 1.41 > splitDistance 1.2
+        let sceneB: [Float] = [0, 1, 0, 0]  // distance √2 ≈ 1.41 > splitDistance 1.2
         let assets = [
             asset("a1", at: 0.0, print: sceneA),
             asset("a2", at: 0.1, print: sceneA),
@@ -75,7 +76,7 @@ final class BurstClusteringTests: XCTestCase {
     func testSimilarAdjacentClustersMerge() {
         // "Walked around the subject": >2s gaps but visually continuous.
         let scene: [Float] = [1, 0, 0, 0]
-        let near: [Float] = [0.9, 0.1, 0, 0] // distance ≈ 0.14 < mergeDistance
+        let near: [Float] = [0.9, 0.1, 0, 0]  // distance ≈ 0.14 < mergeDistance
         let assets = [
             asset("a", at: 0, print: scene),
             asset("b", at: 5, print: near),
@@ -90,7 +91,7 @@ final class BurstClusteringTests: XCTestCase {
         let scene: [Float] = [1, 0, 0, 0]
         let assets = [
             asset("a", at: 0, print: scene),
-            asset("b", at: 120, print: scene), // identical scene, but 2 minutes later
+            asset("b", at: 120, print: scene),  // identical scene, but 2 minutes later
         ]
         let groups = BurstClusterer.cluster(assets)
         XCTAssertEqual(groups.count, 2)

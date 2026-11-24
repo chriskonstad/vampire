@@ -1,6 +1,5 @@
 import Foundation
 import Network
-
 import PTP
 
 /// PTP/IP transport over the camera's Wi-Fi: opens the command and event TCP
@@ -55,8 +54,10 @@ actor PTPTransport {
     private let onDisconnect: @Sendable () -> Void
     private var isClosing = false
 
-    init(host: String, port: UInt16 = 15740, guid: Data, log: @escaping Log,
-         onDisconnect: @escaping @Sendable () -> Void = {}) {
+    init(
+        host: String, port: UInt16 = 15740, guid: Data, log: @escaping Log,
+        onDisconnect: @escaping @Sendable () -> Void = {}
+    ) {
         self.host = NWEndpoint.Host(host)
         self.port = NWEndpoint.Port(rawValue: port)!
         self.guid = guid
@@ -75,7 +76,8 @@ actor PTPTransport {
         guard reply.type == .initCommandAck else {
             log("← \(reply.type) \(reply.payload.prefix(8).hexString)")
             if reply.type == .initFail {
-                throw TransportError.connectionFailed("camera refused init — accept the connection on the camera, or check Access Auth.")
+                throw TransportError.connectionFailed(
+                    "camera refused init — accept the connection on the camera, or check Access Auth.")
             }
             throw TransportError.unexpectedPacket(reply.type)
         }
@@ -140,7 +142,8 @@ actor PTPTransport {
     /// data-phase payload (nil for no-data operations).
     @discardableResult
     func perform(_ operation: PTPOperation, parameters: [UInt32] = []) async throws
-        -> (code: UInt16, data: Data?) {
+        -> (code: UInt16, data: Data?)
+    {
         // Actors re-enter at every await, so without this two callers
         // (prefetch + import) would interleave transactions on the wire.
         await acquire()
@@ -170,14 +173,16 @@ actor PTPTransport {
             case .startData, .data, .endData:
                 _ = try assembler.accept(packet)
             case .operationResponse:
-                let code = packet.payload.count >= 2
+                let code =
+                    packet.payload.count >= 2
                     ? UInt16(packet.payload[packet.payload.startIndex])
                         | UInt16(packet.payload[packet.payload.startIndex + 1]) << 8
                     : 0
                 let data = assembler.isComplete ? assembler.data : nil
                 if code != PTPResponse.ok.rawValue || operation != .getObjectInfo {
-                    log("\(operation) \(parameters.map { String($0, radix: 16) }) → "
-                        + "0x\(String(code, radix: 16, uppercase: true)) \(data.map { "\($0.count)B" } ?? "")")
+                    log(
+                        "\(operation) \(parameters.map { String($0, radix: 16) }) → "
+                            + "0x\(String(code, radix: 16, uppercase: true)) \(data.map { "\($0.count)B" } ?? "")")
                 }
                 return (code, data)
             case .probeRequest:
@@ -196,8 +201,10 @@ actor PTPTransport {
     /// DeviceBusy is retried with backoff: Sony bodies answer it routinely
     /// mid-session (seen on the A7RV during back-to-back screennail pulls),
     /// and every op we send is a side-effect-free read, so retry is safe.
-    func require(_ operation: PTPOperation, parameters: [UInt32] = [],
-                 expectsData: Bool = false) async throws -> Data {
+    func require(
+        _ operation: PTPOperation, parameters: [UInt32] = [],
+        expectsData: Bool = false
+    ) async throws -> Data {
         var (code, data) = try await perform(operation, parameters: parameters)
         var delay: Duration = .milliseconds(100)
         var attempts = 0
@@ -223,7 +230,10 @@ actor PTPTransport {
     private var waiters: [CheckedContinuation<Void, Never>] = []
 
     private func acquire() async {
-        if !inTransaction { inTransaction = true; return }
+        if !inTransaction {
+            inTransaction = true
+            return
+        }
         await withCheckedContinuation { waiters.append($0) }
     }
 
@@ -246,7 +256,7 @@ actor PTPTransport {
         // Pin to Wi-Fi: the camera's AP has no internet, so without this iOS
         // may route the socket over cellular and never reach the camera.
         #if !targetEnvironment(simulator)
-        params.requiredInterfaceType = .wifi  // the simulator's network isn't typed Wi-Fi
+            params.requiredInterfaceType = .wifi  // the simulator's network isn't typed Wi-Fi
         #endif
         let conn = NWConnection(host: host, port: port, using: params)
         let log = self.log
@@ -329,10 +339,15 @@ actor PTPTransport {
         func send(_ packet: PTPIPPacket) async throws {
             lastActivity = .now
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                conn.send(content: packet.encoded(), completion: .contentProcessed { err in
-                    if let err { cont.resume(throwing: TransportError.connectionFailed("\(err)")) }
-                    else { cont.resume() }
-                })
+                conn.send(
+                    content: packet.encoded(),
+                    completion: .contentProcessed { err in
+                        if let err {
+                            cont.resume(throwing: TransportError.connectionFailed("\(err)"))
+                        } else {
+                            cont.resume()
+                        }
+                    })
             }
         }
 
@@ -341,7 +356,7 @@ actor PTPTransport {
         func readPacket() async throws -> PTPIPPacket {
             while true {
                 if let (packet, consumed) = try PTPIPPacket.parse(buffer) {
-                    buffer.removeSubrange(buffer.startIndex ..< buffer.startIndex + consumed)
+                    buffer.removeSubrange(buffer.startIndex..<buffer.startIndex + consumed)
                     return packet
                 }
                 guard !isCancelled else { throw TransportError.notConnected }
@@ -350,9 +365,18 @@ actor PTPTransport {
                     pending = (once, cont)
                     conn.receive(minimumIncompleteLength: 1, maximumLength: 1 << 20) { data, _, isComplete, err in
                         guard once.claim() else { return }
-                        if let err { cont.resume(throwing: TransportError.connectionFailed("\(err)")); return }
-                        if let data, !data.isEmpty { cont.resume(returning: data); return }
-                        if isComplete { cont.resume(throwing: TransportError.notConnected); return }
+                        if let err {
+                            cont.resume(throwing: TransportError.connectionFailed("\(err)"))
+                            return
+                        }
+                        if let data, !data.isEmpty {
+                            cont.resume(returning: data)
+                            return
+                        }
+                        if isComplete {
+                            cont.resume(throwing: TransportError.notConnected)
+                            return
+                        }
                         cont.resume(returning: Data())
                     }
                 }
@@ -369,7 +393,8 @@ private final class OnceFlag: @unchecked Sendable {
     private let lock = NSLock()
     private var done = false
     func claim() -> Bool {
-        lock.lock(); defer { lock.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         if done { return false }
         done = true
         return true

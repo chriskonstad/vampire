@@ -1,5 +1,4 @@
 import Foundation
-
 import PTP
 import SonyMakerNotes
 
@@ -19,7 +18,10 @@ struct CameraPhoto: Identifiable, Hashable, Sendable {
     let rating: Int
     let isProtected: Bool
 
-    struct ID: Hashable, Sendable { let slot: UInt32; let contentID: UInt32 }
+    struct ID: Hashable, Sendable {
+        let slot: UInt32
+        let contentID: UInt32
+    }
     var id: ID { ID(slot: slot, contentID: contentID) }
     var capturedAt: Date { Date(timeIntervalSince1970: Double(createdUTCms) / 1000) }
 }
@@ -39,8 +41,10 @@ actor SonyCameraClient {
     private let headProbeBytes: UInt32 = 256 * 1024
     private let downloadChunk: UInt32 = 4 * 1024 * 1024
 
-    init(host: String, guid: Data, log: @escaping PTPTransport.Log,
-         onDisconnect: @escaping @Sendable () -> Void = {}) {
+    init(
+        host: String, guid: Data, log: @escaping PTPTransport.Log,
+        onDisconnect: @escaping @Sendable () -> Void = {}
+    ) {
         self.transport = PTPTransport(host: host, guid: guid, log: log, onDisconnect: onDisconnect)
         self.log = log
     }
@@ -49,7 +53,8 @@ actor SonyCameraClient {
         let ack = try await transport.connect()
         cameraName = ack.cameraName
         if let data = try? await transport.require(.getDeviceInfo, expectsData: true),
-           let info = try? PTPDeviceInfo(from: data) {
+            let info = try? PTPDeviceInfo(from: data)
+        {
             deviceInfo = info
             log("\(info.manufacturer) \(info.model) fw \(info.deviceVersion) · \(info.operations.count) ops")
         }
@@ -81,22 +86,25 @@ actor SonyCameraClient {
             // answers (alpha2go), while the date list says InvalidParameter.
             let (code, dates) = try await transport.perform(.sonyGetCapturedDateList, parameters: [slot])
             guard code == PTPResponse.ok.rawValue, let dates,
-                  try SonyRemoteTransfer.capturedDateCount(dates) > 0 else {
+                try SonyRemoteTransfer.capturedDateCount(dates) > 0
+            else {
                 log("slot \(slot): empty or absent")
                 continue
             }
             var cursor: UInt64 = 0
             var seen = Set<UInt32>()
             while true {
-                let page = try SonyRemoteTransfer.parseContentsList(try await transport.require(
-                    .sonyGetContentsInfoList,
-                    parameters: SonyRemoteTransfer.contentsListParameters(cursor: cursor, slot: slot),
-                    expectsData: true))
+                let page = try SonyRemoteTransfer.parseContentsList(
+                    try await transport.require(
+                        .sonyGetContentsInfoList,
+                        parameters: SonyRemoteTransfer.contentsListParameters(cursor: cursor, slot: slot),
+                        expectsData: true))
                 for content in page where seen.insert(content.contentID).inserted {
                     if let photo = Self.photo(from: content, slot: slot) { photos.append(photo) }
                 }
                 guard page.count >= Int(SonyRemoteTransfer.pageSize),
-                      let last = page.last?.createdUTCms, last != cursor else { break }
+                    let last = page.last?.createdUTCms, last != cursor
+                else { break }
                 cursor = last
             }
             log("slot \(slot): \(seen.count) shots")
@@ -109,11 +117,12 @@ actor SonyCameraClient {
             [PTPObjectFormat.sonyRAW.rawValue, PTPObjectFormat.exifJPEG.rawValue, 0xB110].contains($0.format)
         }
         guard let file = stills.first(where: \.isRAW) ?? stills.first else { return nil }
-        return CameraPhoto(slot: slot, contentID: content.contentID, fileID: file.fileID,
-                           filename: file.filename, sizeBytes: file.size, isRAW: file.isRAW,
-                           pixelWidth: Int(file.pixelWidth), pixelHeight: Int(file.pixelHeight),
-                           createdUTCms: content.createdUTCms, rating: Int(content.rating),
-                           isProtected: content.isProtected)
+        return CameraPhoto(
+            slot: slot, contentID: content.contentID, fileID: file.fileID,
+            filename: file.filename, sizeBytes: file.size, isRAW: file.isRAW,
+            pixelWidth: Int(file.pixelWidth), pixelHeight: Int(file.pixelHeight),
+            createdUTCms: content.createdUTCms, rating: Int(content.rating),
+            isProtected: content.isProtected)
     }
 
     /// Sony's own small thumbnail (160×120 JPEG for RAW) for the grid.
@@ -142,8 +151,10 @@ actor SonyCameraClient {
     /// Resumable: bytes already in `url` from an interrupted attempt are kept
     /// and the transfer continues from there — a drop at 90% costs 4MB, not
     /// the whole RAW.
-    func download(_ photo: CameraPhoto, to url: URL,
-                  progress: @Sendable (UInt64) -> Void = { _ in }) async throws {
+    func download(
+        _ photo: CameraPhoto, to url: URL,
+        progress: @Sendable (UInt64) -> Void = { _ in }
+    ) async throws {
         let existing = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? UInt64) ?? nil
         if existing == nil || existing! > photo.sizeBytes {
             FileManager.default.createFile(atPath: url.path, contents: nil)
@@ -168,8 +179,10 @@ actor SonyCameraClient {
     private func compressed(_ photo: CameraPhoto, type: UInt32) async throws -> Data {
         try await transport.require(
             .sonyGetContentsCompressedData,
-            parameters: [photo.contentID,
-                         SonyRemoteTransfer.fileSelector(slot: photo.slot, fileID: photo.fileID), type],
+            parameters: [
+                photo.contentID,
+                SonyRemoteTransfer.fileSelector(slot: photo.slot, fileID: photo.fileID), type,
+            ],
             expectsData: true)
     }
 

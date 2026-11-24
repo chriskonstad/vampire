@@ -1,6 +1,6 @@
+import CullIntent
 import Foundation
 import GRDB
-import CullIntent
 
 /// SQLite-backed index + intent log. Everything expensive the indexer extracts
 /// lands here once; the culling UI reads only from here (hard constraint 4).
@@ -103,20 +103,20 @@ public final class IndexStore: @unchecked Sendable {
             // before a signal existed.
             try db.alter(table: "asset_index") { t in
                 t.add(column: "indexVersion", .integer).notNull().defaults(to: 0)
-                t.add(column: "aestheticScore", .double)   // -1...1 (Vision)
-                t.add(column: "isUtility", .boolean)       // screenshots, docs
-                t.add(column: "horizonDegrees", .double)   // signed tilt
-                t.add(column: "clippedHighlights", .double) // fraction 0...1
-                t.add(column: "crushedShadows", .double)    // fraction 0...1
-                t.add(column: "meanLuma", .double)          // 0...1
-                t.add(column: "salientX", .double)          // attention box,
-                t.add(column: "salientY", .double)          // normalized
+                t.add(column: "aestheticScore", .double)  // -1...1 (Vision)
+                t.add(column: "isUtility", .boolean)  // screenshots, docs
+                t.add(column: "horizonDegrees", .double)  // signed tilt
+                t.add(column: "clippedHighlights", .double)  // fraction 0...1
+                t.add(column: "crushedShadows", .double)  // fraction 0...1
+                t.add(column: "meanLuma", .double)  // 0...1
+                t.add(column: "salientX", .double)  // attention box,
+                t.add(column: "salientY", .double)  // normalized
                 t.add(column: "salientWidth", .double)
                 t.add(column: "salientHeight", .double)
-                t.add(column: "closedEyesCount", .integer) // faces mid-blink
+                t.add(column: "closedEyesCount", .integer)  // faces mid-blink
             }
             try db.alter(table: "face") { t in
-                t.add(column: "eyesOpen", .double) // 0...1 openness, nil unknown
+                t.add(column: "eyesOpen", .double)  // 0...1 openness, nil unknown
             }
         }
 
@@ -180,11 +180,12 @@ public final class IndexStore: @unchecked Sendable {
     /// skips these, making the pass resumable.
     public func indexedAssetIDs(minimumVersion: Int = IndexStore.currentIndexVersion) throws -> Set<String> {
         try dbQueue.read { db in
-            Set(try String.fetchAll(
-                db,
-                sql: "SELECT assetID FROM asset_index WHERE indexedAt IS NOT NULL AND indexVersion >= ?",
-                arguments: [minimumVersion]
-            ))
+            Set(
+                try String.fetchAll(
+                    db,
+                    sql: "SELECT assetID FROM asset_index WHERE indexedAt IS NOT NULL AND indexVersion >= ?",
+                    arguments: [minimumVersion]
+                ))
         }
     }
 
@@ -229,8 +230,10 @@ public final class IndexStore: @unchecked Sendable {
 
     // MARK: - Sessions
 
-    public func createSession(name: String, assetIDs: [String], createdAt: Date = Date(),
-                              kind: CullSessionRecord.Kind = .library) throws -> CullSessionRecord {
+    public func createSession(
+        name: String, assetIDs: [String], createdAt: Date = Date(),
+        kind: CullSessionRecord.Kind = .library
+    ) throws -> CullSessionRecord {
         let session = CullSessionRecord(name: name, createdAt: createdAt, lastOpenedAt: createdAt, kind: kind)
         try dbQueue.write { db in
             try session.insert(db)

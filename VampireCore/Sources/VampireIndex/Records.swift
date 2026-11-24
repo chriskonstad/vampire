@@ -1,7 +1,7 @@
+import CullIntent
 import Foundation
 import GRDB
 import SonyMakerNotes
-import CullIntent
 
 /// One indexed asset. Joined to Photos by `PHAsset.localIdentifier` — the one
 /// and only identity scheme (hard constraint 5).
@@ -38,12 +38,12 @@ public struct AssetIndexRecord: Codable, Equatable, Sendable {
     /// Schema version of the extraction that produced this row; rows below
     /// IndexStore.currentIndexVersion are re-indexed.
     public var indexVersion: Int = 0
-    public var aestheticScore: Double?      // Vision overall, -1...1
-    public var isUtility: Bool?             // screenshots/receipts/docs
-    public var horizonDegrees: Double?      // signed tilt
-    public var clippedHighlights: Double?   // fraction of blown pixels
-    public var crushedShadows: Double?      // fraction of crushed pixels
-    public var meanLuma: Double?            // 0...1
+    public var aestheticScore: Double?  // Vision overall, -1...1
+    public var isUtility: Bool?  // screenshots/receipts/docs
+    public var horizonDegrees: Double?  // signed tilt
+    public var clippedHighlights: Double?  // fraction of blown pixels
+    public var crushedShadows: Double?  // fraction of crushed pixels
+    public var meanLuma: Double?  // 0...1
     public var salientX: Double?
     public var salientY: Double?
     public var salientWidth: Double?
@@ -86,7 +86,8 @@ public struct AssetIndexRecord: Codable, Equatable, Sendable {
 
     public var focusLocation: FocusLocation? {
         guard let w = focusImageWidth, let h = focusImageHeight,
-              let x = focusX, let y = focusY else { return nil }
+            let x = focusX, let y = focusY
+        else { return nil }
         return FocusLocation(
             imageWidth: w, imageHeight: h, x: x, y: y,
             frameWidth: focusFrameWidth, frameHeight: focusFrameHeight
@@ -102,7 +103,8 @@ public struct AssetIndexRecord: Codable, Equatable, Sendable {
     public var salientRect: NormalizedRect? {
         get {
             guard let x = salientX, let y = salientY,
-                  let w = salientWidth, let h = salientHeight else { return nil }
+                let w = salientWidth, let h = salientHeight
+            else { return nil }
             return NormalizedRect(x: x, y: y, width: w, height: h)
         }
         set {
@@ -134,9 +136,11 @@ public struct FaceRecord: Codable, Equatable, Sendable {
     /// Below ~0.18 reads as a blink.
     public var eyesOpen: Double?
 
-    public init(id: Int64? = nil, assetID: String, x: Double, y: Double,
-                width: Double, height: Double, captureQuality: Double?,
-                eyesOpen: Double? = nil) {
+    public init(
+        id: Int64? = nil, assetID: String, x: Double, y: Double,
+        width: Double, height: Double, captureQuality: Double?,
+        eyesOpen: Double? = nil
+    ) {
         self.id = id
         self.assetID = assetID
         self.x = x

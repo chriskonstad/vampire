@@ -22,7 +22,7 @@ public struct PTPDataPhaseAssembler {
         switch packet.type {
         case .startData:
             var r = PTPReader(packet.payload)
-            _ = try r.u32()              // transactionID
+            _ = try r.u32()  // transactionID
             expectedLength = try r.u64()
             return .accepted
         case .data:

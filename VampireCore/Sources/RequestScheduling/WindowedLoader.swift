@@ -77,7 +77,7 @@ public struct WindowedLoader<Key: Hashable, Image> {
     /// window follows `keys[index]`.
     public mutating func focus(on index: Int, in keys: [Key]) -> [Effect] {
         guard keys.indices.contains(index) else { return [] }
-        let range = max(0, index - radius) ... min(keys.count - 1, index + radius)
+        let range = max(0, index - radius)...min(keys.count - 1, index + radius)
         if current != keys[index] { failures = [:] }  // moving on: give failed frames a fresh try
         current = keys[index]
         window = Set(range.map { keys[$0] })

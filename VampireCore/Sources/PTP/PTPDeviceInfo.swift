@@ -16,15 +16,15 @@ public struct PTPDeviceInfo: Equatable {
 
     public init(from data: Data) throws {
         var r = PTPReader(data)
-        _ = try r.u16()                      // standard version
+        _ = try r.u16()  // standard version
         vendorExtensionID = try r.u32()
-        _ = try r.u16()                      // vendor extension version
+        _ = try r.u16()  // vendor extension version
         vendorExtension = try r.ptpString()
-        _ = try r.u16()                      // functional mode
+        _ = try r.u16()  // functional mode
         operations = try Self.u16Array(&r)
-        _ = try Self.u16Array(&r)            // events
-        _ = try Self.u16Array(&r)            // device properties
-        _ = try Self.u16Array(&r)            // capture formats
+        _ = try Self.u16Array(&r)  // events
+        _ = try Self.u16Array(&r)  // device properties
+        _ = try Self.u16Array(&r)  // capture formats
         imageFormats = try Self.u16Array(&r)
         manufacturer = try r.ptpString()
         model = try r.ptpString()
@@ -34,6 +34,6 @@ public struct PTPDeviceInfo: Equatable {
     private static func u16Array(_ r: inout PTPReader) throws -> [UInt16] {
         let count = Int(try r.u32())
         guard count <= 10_000 else { throw PTPWireError.malformed("implausible PTP array count \(count)") }
-        return try (0 ..< count).map { _ in try r.u16() }
+        return try (0..<count).map { _ in try r.u16() }
     }
 }

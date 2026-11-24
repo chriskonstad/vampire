@@ -76,7 +76,7 @@ enum TIFF {
         }
         var entries: [Entry] = []
         entries.reserveCapacity(entryCount)
-        for i in 0 ..< entryCount {
+        for i in 0..<entryCount {
             let entryOffset = offset + 2 + i * 12
             let tag = try reader.uint16(at: entryOffset)
             let rawType = try reader.uint16(at: entryOffset + 2)
@@ -101,7 +101,7 @@ enum TIFF {
     static func unsignedValues(of entry: Entry, in reader: ByteReader) throws -> [UInt32] {
         var values: [UInt32] = []
         values.reserveCapacity(entry.count)
-        for i in 0 ..< entry.count {
+        for i in 0..<entry.count {
             let at = entry.valueOffset + i * entry.type.byteSize
             switch entry.type {
             case .byte, .sbyte, .undefined:
@@ -124,7 +124,7 @@ enum TIFF {
         let byteLength = entry.type.byteSize * entry.count
         var values: [UInt16] = []
         values.reserveCapacity(byteLength / 2)
-        for i in 0 ..< byteLength / 2 {
+        for i in 0..<byteLength / 2 {
             values.append(try reader.uint16(at: entry.valueOffset + i * 2))
         }
         return values

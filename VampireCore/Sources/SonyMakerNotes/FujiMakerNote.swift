@@ -56,7 +56,8 @@ enum FujiMakerNote {
                 result.rawTagValues[entry.tag] = faceCorners.map(UInt32.init)
             case nil:
                 if entry.count <= 16,
-                   let values = try? TIFF.unsignedValues(of: entry, in: sub) {
+                    let values = try? TIFF.unsignedValues(of: entry, in: sub)
+                {
                     result.rawTagValues[entry.tag] = values
                 }
             }
@@ -77,14 +78,17 @@ enum FujiMakerNote {
         }
         // Corner pairs → normalized rects.
         for base in stride(from: 0, to: faceCorners.count - 3, by: 4) {
-            let x1 = Double(faceCorners[base]), y1 = Double(faceCorners[base + 1])
-            let x2 = Double(faceCorners[base + 2]), y2 = Double(faceCorners[base + 3])
-            result.faces.append(NormalizedRect(
-                x: min(x1, x2) / Double(width),
-                y: min(y1, y2) / Double(height),
-                width: abs(x2 - x1) / Double(width),
-                height: abs(y2 - y1) / Double(height)
-            ))
+            let x1 = Double(faceCorners[base])
+            let y1 = Double(faceCorners[base + 1])
+            let x2 = Double(faceCorners[base + 2])
+            let y2 = Double(faceCorners[base + 3])
+            result.faces.append(
+                NormalizedRect(
+                    x: min(x1, x2) / Double(width),
+                    y: min(y1, y2) / Double(height),
+                    width: abs(x2 - x1) / Double(width),
+                    height: abs(y2 - y1) / Double(height)
+                ))
         }
         return result
     }

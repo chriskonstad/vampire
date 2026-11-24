@@ -10,7 +10,7 @@ enum CameraImporter {
             let request = PHAssetCreationRequest.forAsset()
             let options = PHAssetResourceCreationOptions()
             options.originalFilename = filename
-            options.shouldMoveFile = true // move the temp file in
+            options.shouldMoveFile = true  // move the temp file in
             request.addResource(with: .photo, fileURL: fileURL, options: options)
         }
     }

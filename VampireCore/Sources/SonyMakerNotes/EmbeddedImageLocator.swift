@@ -36,8 +36,8 @@ public struct EmbeddedImages: Equatable, Sendable {
 /// walking the IFD chain and any SubIFDs, then classifies them by size.
 public enum EmbeddedImageLocator {
     private enum Tag {
-        static let jpegOffset: UInt16 = 0x0201   // JPEGInterchangeFormat
-        static let jpegLength: UInt16 = 0x0202   // JPEGInterchangeFormatLength
+        static let jpegOffset: UInt16 = 0x0201  // JPEGInterchangeFormat
+        static let jpegLength: UInt16 = 0x0202  // JPEGInterchangeFormatLength
         static let subIFDs: UInt16 = 0x014A
     }
 
@@ -48,7 +48,7 @@ public enum EmbeddedImageLocator {
     public static func locate(in head: Data) throws -> EmbeddedImages {
         let reader = try TIFF.reader(forTIFFData: head)
         var ranges: [EmbeddedImageRange] = []
-        var visited = Set<Int>() // guard against malformed self-referential chains
+        var visited = Set<Int>()  // guard against malformed self-referential chains
 
         func collect(ifdOffset: Int) throws {
             guard ifdOffset > 0, !visited.contains(ifdOffset), visited.count < 64 else { return }
@@ -56,10 +56,11 @@ public enum EmbeddedImageLocator {
             let ifd = try TIFF.parseIFD(in: reader, at: ifdOffset)
 
             if let offEntry = ifd.entry(tag: Tag.jpegOffset),
-               let lenEntry = ifd.entry(tag: Tag.jpegLength),
-               let offset = (try TIFF.unsignedValues(of: offEntry, in: reader)).first,
-               let length = (try TIFF.unsignedValues(of: lenEntry, in: reader)).first,
-               length > 0 {
+                let lenEntry = ifd.entry(tag: Tag.jpegLength),
+                let offset = (try TIFF.unsignedValues(of: offEntry, in: reader)).first,
+                let length = (try TIFF.unsignedValues(of: lenEntry, in: reader)).first,
+                length > 0
+            {
                 ranges.append(EmbeddedImageRange(offset: Int(offset), length: Int(length)))
             }
 

@@ -79,10 +79,11 @@ public struct PagerPosition: Equatable, Sendable {
         self.stackID = stackID
         if pending?.stackID != stackID { pending = nil }
         if pending == nil, let back = resume[stackID],
-           let index = order.stackIndex(ofStack: stackID),
-           order.stacks[index].memberIDs.contains(back),
-           order.stacks[index].memberIDs.first != back,
-           shown[stackID] != back {
+            let index = order.stackIndex(ofStack: stackID),
+            order.stacks[index].memberIDs.contains(back),
+            order.stacks[index].memberIDs.first != back,
+            shown[stackID] != back
+        {
             pending = Pending(stackID: stackID, photoID: back, since: now)
         }
     }
@@ -124,7 +125,8 @@ public struct PagerPosition: Equatable, Sendable {
         var reordered: [String] = []
         for stack in order.stacks where stack.isBurst && stack.id != stackID {
             guard let before = previous.stackIndex(ofStack: stack.id).map({ previous.stacks[$0].memberIDs }),
-                  before != stack.memberIDs else { continue }
+                before != stack.memberIDs
+            else { continue }
             reordered.append(stack.id)
             shown[stack.id] = nil
             resume[stack.id] = nil

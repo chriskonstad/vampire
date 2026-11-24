@@ -1,7 +1,6 @@
-import UIKit
 import ImageIO
-
 import RequestScheduling
+import UIKit
 
 /// Screen-scale images for the full-screen pager.
 ///
@@ -61,7 +60,7 @@ final class PagerImageLoader {
     /// behind it, nearest first for sources that fetch over the network.
     func focus(on index: Int, in items: [CullItem]) {
         guard items.indices.contains(index) else { return }
-        let range = max(0, index - core.radius) ... min(items.count - 1, index + core.radius)
+        let range = max(0, index - core.radius)...min(items.count - 1, index + core.radius)
         for i in range { itemsByID[items[i].id] = items[i] }
         provider.prioritize(range.sorted { abs($0 - index) < abs($1 - index) }.map { items[$0] })
         apply(core.focus(on: index, in: items.map(\.id)))
@@ -83,8 +82,9 @@ final class PagerImageLoader {
                         finished = true
                         self.cancels[request] = nil
                     }
-                    let next = self.core.deliver(request, image: image, isFinal: isFinal,
-                                                 isFull: isFinal && self.provider.hasFullPreview(for: item))
+                    let next = self.core.deliver(
+                        request, image: image, isFinal: isFinal,
+                        isFull: isFinal && self.provider.hasFullPreview(for: item))
                     if image != nil { self.revision += 1 }
                     self.apply(next)
                 }
@@ -103,12 +103,13 @@ enum Downsampler {
     static func decode(url: URL, maxPixelSize: CGFloat) -> UIImage? {
         let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions) else { return nil }
-        let thumbOptions = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
-        ] as CFDictionary
+        let thumbOptions =
+            [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            ] as CFDictionary
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions) else { return nil }
         return UIImage(cgImage: cgImage)
     }
@@ -118,12 +119,13 @@ enum Downsampler {
         guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
             return nil
         }
-        let thumbOptions = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
-        ] as CFDictionary
+        let thumbOptions =
+            [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            ] as CFDictionary
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbOptions) else {
             return nil
         }

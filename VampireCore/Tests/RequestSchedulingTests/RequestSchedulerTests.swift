@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import RequestScheduling
 
 final class RequestSchedulerTests: XCTestCase {
@@ -19,7 +20,7 @@ final class RequestSchedulerTests: XCTestCase {
 
     func testFIFOWithinTier() {
         var scheduler = RequestScheduler<Int>()
-        for i in 0 ..< 5 { scheduler.enqueue(i, priority: .prefetch) }
+        for i in 0..<5 { scheduler.enqueue(i, priority: .prefetch) }
         XCTAssertEqual(scheduler.dequeue()?.key, 0)
         XCTAssertEqual(scheduler.dequeue()?.key, 1)
     }
@@ -28,7 +29,7 @@ final class RequestSchedulerTests: XCTestCase {
         var scheduler = RequestScheduler<String>()
         scheduler.enqueue("a", priority: .prefetch)
         scheduler.enqueue("b", priority: .next)
-        scheduler.enqueue("a", priority: .current) // user scrolled to it
+        scheduler.enqueue("a", priority: .current)  // user scrolled to it
 
         XCTAssertEqual(scheduler.count, 2)
         XCTAssertEqual(scheduler.dequeue()?.key, "a")
@@ -46,7 +47,7 @@ final class RequestSchedulerTests: XCTestCase {
         var scheduler = RequestScheduler<String>()
         scheduler.enqueue("stale1", priority: .current)
         scheduler.enqueue("stale2", priority: .prefetch)
-        scheduler.advanceGeneration() // fling: everything pending is stale
+        scheduler.advanceGeneration()  // fling: everything pending is stale
         XCTAssertTrue(scheduler.isEmpty)
 
         scheduler.enqueue("fresh", priority: .current)

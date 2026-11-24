@@ -150,17 +150,19 @@ final class CameraLink {
         // Already registered from an earlier pick: use it, no picker (and
         // no removal — each removal is a system confirmation).
         if let known = session.accessories.first(where: { ($0.ssid).map(Self.isSonyCamera(ssid:)) ?? false }),
-           let ssid = known.ssid {
+            let ssid = known.ssid
+        {
             accessoryChosen(known, ssid: ssid)
             return
         }
         let descriptor = ASDiscoveryDescriptor()
         if let known = cameraSSID {
-            descriptor.ssid = known        // exact: no printers in the list
+            descriptor.ssid = known  // exact: no printers in the list
         } else {
             descriptor.ssidPrefix = "DIRECT-"  // narrowed to Sony after the pick
         }
-        let item = ASPickerDisplayItem(name: "Sony camera Wi-Fi", productImage: Self.productImage, descriptor: descriptor)
+        let item = ASPickerDisplayItem(
+            name: "Sony camera Wi-Fi", productImage: Self.productImage, descriptor: descriptor)
         session.showPicker(for: [item]) { [weak self] error in
             guard let error else { return }
             MainActor.assumeIsolated {
@@ -190,24 +192,32 @@ final class CameraLink {
         switch event.eventType {
         case .activated:
             isActivated = true
-            activation.forEach { $0.resume() }
+            for continuation in activation { continuation.resume() }
             activation.removeAll()
         case .accessoryAdded, .accessoryChanged:
             guard let accessory = event.accessory, let ssid = accessory.ssid else { return }
             guard Self.isSonyCamera(ssid: ssid) else {
                 log("picked \(ssid) — not a Sony camera, ignoring")
                 session?.removeAccessory(accessory) { _ in }
-                state = .failed("“\(ssid)” isn't a Sony camera. Turn on the camera's Wi-Fi Direct and pick the network ending in its model, like “:ILCE-7RM5”.")
+                state = .failed(
+                    "“\(ssid)” isn't a Sony camera. Turn on the camera's Wi-Fi Direct and pick the network ending in its model, like “:ILCE-7RM5”."
+                )
                 resolve(false)
                 return
             }
             accessoryChosen(accessory, ssid: ssid)
         case .pickerDidDismiss:
-            if state == .picking { state = .idle; resolve(false) }
+            if state == .picking {
+                state = .idle
+                resolve(false)
+            }
         case .invalidated:
             session = nil
             isActivated = false
-            if state == .picking { state = .idle; resolve(false) }
+            if state == .picking {
+                state = .idle
+                resolve(false)
+            }
         default:
             break
         }
@@ -228,10 +238,13 @@ final class CameraLink {
         let error = await withCheckedContinuation { (cont: CheckedContinuation<NSError?, Never>) in
             NEHotspotConfigurationManager.shared.apply(configuration) { cont.resume(returning: $0 as NSError?) }
         }
-        if let error, !(error.domain == NEHotspotConfigurationErrorDomain
-                         && error.code == NEHotspotConfigurationError.alreadyAssociated.rawValue) {
+        if let error,
+            !(error.domain == NEHotspotConfigurationErrorDomain
+                && error.code == NEHotspotConfigurationError.alreadyAssociated.rawValue)
+        {
             log("joining \(ssid) failed: \(error.localizedDescription)")
-            let code = error.domain == NEHotspotConfigurationErrorDomain
+            let code =
+                error.domain == NEHotspotConfigurationErrorDomain
                 ? NEHotspotConfigurationError(rawValue: error.code) : nil
             switch code {
             case .invalidWPAPassphrase?:
@@ -268,31 +281,38 @@ enum Keychain {
     private static let service = "com.chriskonstad.vampire.camera-wifi"
 
     static func password(for account: String) -> String? {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                    kSecAttrService as String: service,
-                                    kSecAttrAccount as String: account,
-                                    kSecReturnData as String: true,
-                                    kSecMatchLimit as String: kSecMatchLimitOne]
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
         var result: AnyObject?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
+            let data = result as? Data
+        else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
     static func setPassword(_ password: String, for account: String) {
         deletePassword(for: account)
-        let item: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                   kSecAttrService as String: service,
-                                   kSecAttrAccount as String: account,
-                                   kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
-                                   kSecValueData as String: Data(password.utf8)]
+        let item: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecValueData as String: Data(password.utf8),
+        ]
         SecItemAdd(item as CFDictionary, nil)
     }
 
     static func deletePassword(for account: String) {
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                    kSecAttrService as String: service,
-                                    kSecAttrAccount as String: account]
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
         SecItemDelete(query as CFDictionary)
     }
 }

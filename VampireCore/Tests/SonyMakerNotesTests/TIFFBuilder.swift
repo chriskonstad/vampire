@@ -81,7 +81,7 @@ struct TIFFBuilder {
     static func sonyARWHead(
         endianness: Endianness = .little,
         focusLocation: [UInt32]? = [9504, 6336, 4752, 3168],
-        focusLocationType: UInt16 = 3, // SHORT, as written by A7RV-era bodies
+        focusLocationType: UInt16 = 3,  // SHORT, as written by A7RV-era bodies
         /// Tag 0x2037 payload, written as undef[2n] like the camera does.
         focusFrameSize: [UInt16]? = nil,
         dateTimeOriginal: String = "2026:06:01 10:15:30",
@@ -94,7 +94,7 @@ struct TIFFBuilder {
 
         var header = endianness == .little ? Data([0x49, 0x49]) : Data([0x4D, 0x4D])
         header.append(b.u16(42))
-        header.append(b.u32(8)) // IFD0 directly after header
+        header.append(b.u32(8))  // IFD0 directly after header
 
         // Layout is computed in two passes because pointers are absolute:
         // sizes first, then re-serialize with real offsets.
@@ -121,12 +121,15 @@ struct TIFFBuilder {
             }
 
             var exifEntries: [EntrySpec] = [
-                EntrySpec(tag: 0x9003, type: 2, count: UInt32(dateTimeOriginal.utf8.count + 1),
-                          payload: b.ascii(dateTimeOriginal)),
+                EntrySpec(
+                    tag: 0x9003, type: 2, count: UInt32(dateTimeOriginal.utf8.count + 1),
+                    payload: b.ascii(dateTimeOriginal))
             ]
             if let subSec = subSecTimeOriginal {
-                exifEntries.append(EntrySpec(tag: 0x9291, type: 2, count: UInt32(subSec.utf8.count + 1),
-                                             payload: b.ascii(subSec)))
+                exifEntries.append(
+                    EntrySpec(
+                        tag: 0x9291, type: 2, count: UInt32(subSec.utf8.count + 1),
+                        payload: b.ascii(subSec)))
             }
 
             let make = b.ascii("SONY")
@@ -141,10 +144,12 @@ struct TIFFBuilder {
             var exifIFDOffset = 0
             var makerNoteOffset = 0
             var result = Data()
-            for _ in 0 ..< 3 {
+            for _ in 0..<3 {
                 var ifd0 = ifd0Entries
-                ifd0.append(EntrySpec(tag: 0x8769, type: 4, count: 1,
-                                      payload: b.longValues([UInt32(exifIFDOffset)])))
+                ifd0.append(
+                    EntrySpec(
+                        tag: 0x8769, type: 4, count: 1,
+                        payload: b.longValues([UInt32(exifIFDOffset)])))
                 let ifd0Block = b.ifdBlock(at: ifd0Offset, entries: ifd0)
 
                 exifIFDOffset = ifd0Offset + ifd0Block.count
@@ -156,8 +161,10 @@ struct TIFFBuilder {
                 makerNote.append(b.ifdBlock(at: makerNoteOffset + makerNote.count, entries: makerEntries))
 
                 var exif = exifEntries
-                exif.append(EntrySpec(tag: 0x927C, type: 7, count: UInt32(makerNote.count),
-                                      payload: makerNote, forceOutOfLine: true))
+                exif.append(
+                    EntrySpec(
+                        tag: 0x927C, type: 7, count: UInt32(makerNote.count),
+                        payload: makerNote, forceOutOfLine: true))
                 let exifBlock = b.ifdBlock(at: exifIFDOffset, entries: exif)
 
                 // The maker note payload is the last out-of-line value of the
@@ -185,20 +192,23 @@ struct TIFFBuilder {
         // Maker note, self-relative: header is 12 bytes, IFD follows.
         var makerEntries: [EntrySpec] = []
         if let focusPixel {
-            makerEntries.append(EntrySpec(
-                tag: 0x1023, type: 3, count: 2,
-                payload: b.shortValues(focusPixel) // int32u carrying 2×u16
-            ))
+            makerEntries.append(
+                EntrySpec(
+                    tag: 0x1023, type: 3, count: 2,
+                    payload: b.shortValues(focusPixel)  // int32u carrying 2×u16
+                ))
         }
-        makerEntries.append(EntrySpec(
-            tag: 0x4100, type: 3, count: 1,
-            payload: b.shortValues([UInt16(faceCorners.count / 4)])
-        ))
-        if !faceCorners.isEmpty {
-            makerEntries.append(EntrySpec(
-                tag: 0x4103, type: 3, count: UInt32(faceCorners.count),
-                payload: b.shortValues(faceCorners)
+        makerEntries.append(
+            EntrySpec(
+                tag: 0x4100, type: 3, count: 1,
+                payload: b.shortValues([UInt16(faceCorners.count / 4)])
             ))
+        if !faceCorners.isEmpty {
+            makerEntries.append(
+                EntrySpec(
+                    tag: 0x4103, type: 3, count: UInt32(faceCorners.count),
+                    payload: b.shortValues(faceCorners)
+                ))
         }
         var makerNote = Data("FUJIFILM".utf8)
         makerNote.append(b.u32(12))
@@ -214,20 +224,25 @@ struct TIFFBuilder {
             let model = b.ascii("X-T5")
             var exifIFDOffset = 0
             var result = Data()
-            for _ in 0 ..< 3 {
-                let ifd0 = b.ifdBlock(at: 8, entries: [
-                    EntrySpec(tag: 0x010F, type: 2, count: UInt32(make.count), payload: make),
-                    EntrySpec(tag: 0x0110, type: 2, count: UInt32(model.count), payload: model),
-                    EntrySpec(tag: 0x8769, type: 4, count: 1, payload: b.longValues([UInt32(exifIFDOffset)])),
-                ])
+            for _ in 0..<3 {
+                let ifd0 = b.ifdBlock(
+                    at: 8,
+                    entries: [
+                        EntrySpec(tag: 0x010F, type: 2, count: UInt32(make.count), payload: make),
+                        EntrySpec(tag: 0x0110, type: 2, count: UInt32(model.count), payload: model),
+                        EntrySpec(tag: 0x8769, type: 4, count: 1, payload: b.longValues([UInt32(exifIFDOffset)])),
+                    ])
                 exifIFDOffset = 8 + ifd0.count
-                let exif = b.ifdBlock(at: exifIFDOffset, entries: [
-                    EntrySpec(tag: 0x9003, type: 2, count: 20, payload: b.ascii("2025:04:26 10:59:00")),
-                    EntrySpec(tag: 0x927C, type: 7, count: UInt32(makerNote.count),
-                              payload: makerNote, forceOutOfLine: true),
-                    EntrySpec(tag: 0xA002, type: 4, count: 1, payload: b.longValues([pixelWidth])),
-                    EntrySpec(tag: 0xA003, type: 4, count: 1, payload: b.longValues([pixelHeight])),
-                ])
+                let exif = b.ifdBlock(
+                    at: exifIFDOffset,
+                    entries: [
+                        EntrySpec(tag: 0x9003, type: 2, count: 20, payload: b.ascii("2025:04:26 10:59:00")),
+                        EntrySpec(
+                            tag: 0x927C, type: 7, count: UInt32(makerNote.count),
+                            payload: makerNote, forceOutOfLine: true),
+                        EntrySpec(tag: 0xA002, type: 4, count: 1, payload: b.longValues([pixelWidth])),
+                        EntrySpec(tag: 0xA003, type: 4, count: 1, payload: b.longValues([pixelHeight])),
+                    ])
                 result = header + ifd0 + exif
             }
             return result

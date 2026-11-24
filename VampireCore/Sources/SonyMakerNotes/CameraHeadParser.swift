@@ -46,23 +46,24 @@ enum JPEGSegments {
     /// Walks JPEG markers from `jpegStart` and returns the TIFF buffer inside
     /// the APP1 "Exif" segment.
     static func exifTIFFData(in data: Data, jpegStart: Int) throws -> Data {
-        let reader = ByteReader(data: data, endianness: .big) // JPEG lengths are BE
+        let reader = ByteReader(data: data, endianness: .big)  // JPEG lengths are BE
         guard try reader.uint16(at: jpegStart) == 0xFFD8 else {
             throw ARWParseError.malformed("no JPEG SOI at offset \(jpegStart)")
         }
 
         var cursor = jpegStart + 2
-        for _ in 0 ..< 64 { // EXIF APP1 sits in the first few segments
+        for _ in 0..<64 {  // EXIF APP1 sits in the first few segments
             let marker = try reader.uint16(at: cursor)
-            guard (0xFFE0 ... 0xFFFE).contains(marker) else {
+            guard (0xFFE0...0xFFFE).contains(marker) else {
                 throw ARWParseError.malformed("unexpected JPEG marker 0x\(String(marker, radix: 16))")
             }
             // Entropy-coded data starts at SOS; EXIF must come before it.
             if marker == 0xFFDA { break }
-            let length = Int(try reader.uint16(at: cursor + 2)) // includes the 2 length bytes
+            let length = Int(try reader.uint16(at: cursor + 2))  // includes the 2 length bytes
             let payloadStart = cursor + 4
             if marker == 0xFFE1,
-               (try? reader.bytes(at: payloadStart, count: 6)) == Data("Exif\0\0".utf8) {
+                (try? reader.bytes(at: payloadStart, count: 6)) == Data("Exif\0\0".utf8)
+            {
                 let tiffStart = payloadStart + 6
                 let tiffLength = length - 2 - 6
                 return try reader.bytes(at: tiffStart, count: tiffLength)

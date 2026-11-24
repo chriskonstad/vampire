@@ -1,8 +1,7 @@
 import Photos
-import UIKit
-
-import VampireIndex
 import SonyMakerNotes
+import UIKit
+import VampireIndex
 
 enum IndexUpdate: Sendable {
     case progress(done: Int, total: Int)
@@ -107,11 +106,12 @@ final class Indexer: @unchecked Sendable {
                 ) > 0.3
             }
             if !overlapsExisting {
-                faces.append(FaceRecord(
-                    assetID: assetID,
-                    x: rect.x, y: rect.y, width: rect.width, height: rect.height,
-                    captureQuality: nil
-                ))
+                faces.append(
+                    FaceRecord(
+                        assetID: assetID,
+                        x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+                        captureQuality: nil
+                    ))
             }
         }
 

@@ -15,7 +15,7 @@ public struct PTPIPPacket: Equatable {
     /// Serializes to the wire with the length-inclusive header.
     public func encoded() -> Data {
         var w = PTPWriter()
-        w.u32(UInt32(8 + payload.count)) // length includes the 8-byte header
+        w.u32(UInt32(8 + payload.count))  // length includes the 8-byte header
         w.u32(type.rawValue)
         w.bytes(payload)
         return w.data
@@ -32,7 +32,7 @@ public struct PTPIPPacket: Equatable {
         guard length >= 8, length <= 64 * 1024 * 1024 else {
             throw PTPWireError.malformed("implausible PTP/IP packet length \(length)")
         }
-        guard buffer.count >= length else { return nil } // wait for more bytes
+        guard buffer.count >= length else { return nil }  // wait for more bytes
         let rawType = try r.u32()
         guard let type = PTPIPPacketType(rawValue: rawType) else {
             throw PTPWireError.malformed("unknown PTP/IP packet type \(rawType)")
@@ -44,15 +44,20 @@ public struct PTPIPPacket: Equatable {
 
 /// One PTP operation to send (Operation Request packet payload).
 public struct PTPOperationRequest {
-    public enum DataPhase: UInt32 { case none = 1, dataToCamera = 2 }
+    public enum DataPhase: UInt32 {
+        case none = 1
+        case dataToCamera = 2
+    }
 
     public let operation: PTPOperation
     public let transactionID: UInt32
     public let parameters: [UInt32]
     public let dataPhase: DataPhase
 
-    public init(_ operation: PTPOperation, transactionID: UInt32,
-                parameters: [UInt32] = [], dataPhase: DataPhase = .none) {
+    public init(
+        _ operation: PTPOperation, transactionID: UInt32,
+        parameters: [UInt32] = [], dataPhase: DataPhase = .none
+    ) {
         self.operation = operation
         self.transactionID = transactionID
         self.parameters = parameters
@@ -88,6 +93,8 @@ public struct PTPOperationResponse: Equatable {
     }
 
     public init(code: UInt16, transactionID: UInt32, parameters: [UInt32] = []) {
-        self.code = code; self.transactionID = transactionID; self.parameters = parameters
+        self.code = code
+        self.transactionID = transactionID
+        self.parameters = parameters
     }
 }

@@ -1,7 +1,6 @@
+import SonyMakerNotes
 import SwiftUI
 import UIKit
-
-import SonyMakerNotes
 
 /// One pager page: a UIScrollView-backed photo with native pinch-to-zoom,
 /// pan-while-zoomed, double-tap zoom-to-AF, and the AF box overlay drawn
@@ -66,7 +65,7 @@ final class PhotoZoomScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRe
         showsHorizontalScrollIndicator = false
         contentInsetAdjustmentBehavior = .never
 
-        imageView.contentMode = .scaleToFill // frame is computed aspect-fit
+        imageView.contentMode = .scaleToFill  // frame is computed aspect-fit
         addSubview(imageView)
 
         // Semi-transparent so the box marks the spot without hiding what's
@@ -104,7 +103,7 @@ final class PhotoZoomScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRe
         let press = UILongPressGestureRecognizer(target: self, action: #selector(handlePress(_:)))
         press.minimumPressDuration = 0.2
         press.cancelsTouchesInView = false
-        press.delegate = self // simultaneous with pinch/pan/double-tap
+        press.delegate = self  // simultaneous with pinch/pan/double-tap
         addGestureRecognizer(press)
     }
 
@@ -118,11 +117,14 @@ final class PhotoZoomScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRe
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    func configure(image: UIImage?, focusLocation: FocusLocation?, salientRect: NormalizedRect?, horizonDegrees: Double?, showsOverlay: Bool) {
+    func configure(
+        image: UIImage?, focusLocation: FocusLocation?, salientRect: NormalizedRect?, horizonDegrees: Double?,
+        showsOverlay: Bool
+    ) {
         if imageView.image !== image {
             imageView.image = image
             zoomScale = 1
-            lastLayoutSize = .zero // force re-fit
+            lastLayoutSize = .zero  // force re-fit
             setNeedsLayout()
         }
         self.focusLocation = focusLocation
@@ -132,7 +134,7 @@ final class PhotoZoomScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRe
         layoutAFBox()
         layoutSalientBox()
         layoutHorizon()
-        updateGestureOwnership() // zoom may have been reset programmatically
+        updateGestureOwnership()  // zoom may have been reset programmatically
     }
 
     override func layoutSubviews() {
@@ -157,8 +159,9 @@ final class PhotoZoomScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRe
     /// drawn when the photo is visibly off (≥2°).
     private func layoutHorizon() {
         guard showsOverlay, !isPeeking,
-              let degrees = horizonDegrees, abs(degrees) >= 2,
-              imageView.bounds.width > 0 else {
+            let degrees = horizonDegrees, abs(degrees) >= 2,
+            imageView.bounds.width > 0
+        else {
             horizonView.isHidden = true
             return
         }
@@ -188,8 +191,9 @@ final class PhotoZoomScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRe
 
     private func layoutSalientBox() {
         guard showsOverlay, !isPeeking,
-              let rect = salientRect,
-              imageView.bounds.width > 0 else {
+            let rect = salientRect,
+            imageView.bounds.width > 0
+        else {
             salientBox.isHidden = true
             return
         }
@@ -221,9 +225,10 @@ final class PhotoZoomScrollView: UIScrollView, UIScrollViewDelegate, UIGestureRe
     /// AF box in imageView coordinates; it scales with the zoom transform.
     private func layoutAFBox() {
         guard showsOverlay, !isPeeking,
-              let focus = focusLocation,
-              let point = focus.normalizedPoint,
-              imageView.bounds.width > 0 else {
+            let focus = focusLocation,
+            let point = focus.normalizedPoint,
+            imageView.bounds.width > 0
+        else {
             afBox.isHidden = true
             return
         }

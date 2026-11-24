@@ -1,6 +1,5 @@
-import SwiftUI
 import PhotosUI
-
+import SwiftUI
 import VampireIndex
 
 /// Home screen: resume an existing culling session or start a new one from a
@@ -18,7 +17,6 @@ struct SessionListView: View {
     // Rename flow.
     @State private var renameTarget: SessionSummary?
     @State private var renameText = ""
-
 
     var body: some View {
         NavigationStack {
@@ -40,7 +38,9 @@ struct SessionListView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     // Wireless field culling: today's camera session, same
                     // culling screen as library sessions.
-                    Button { model.openCameraSession() } label: {
+                    Button {
+                        model.openCameraSession()
+                    } label: {
                         Label("Camera", systemImage: "camera.badge.ellipsis")
                     }
                 }
@@ -52,7 +52,7 @@ struct SessionListView: View {
                 isPresented: $showsPicker,
                 selection: $pickerItems,
                 matching: .images,
-                photoLibrary: .shared() // .shared() is what makes itemIdentifier non-nil
+                photoLibrary: .shared()  // .shared() is what makes itemIdentifier non-nil
             )
             .onChange(of: pickerItems) { _, items in
                 guard !items.isEmpty else { return }
@@ -62,10 +62,13 @@ struct SessionListView: View {
                 draftName = Self.defaultName()
                 pendingAssetIDs = ids
             }
-            .alert("Name this session", isPresented: Binding(
-                get: { pendingAssetIDs != nil },
-                set: { if !$0 { pendingAssetIDs = nil } }
-            )) {
+            .alert(
+                "Name this session",
+                isPresented: Binding(
+                    get: { pendingAssetIDs != nil },
+                    set: { if !$0 { pendingAssetIDs = nil } }
+                )
+            ) {
                 TextField("Session name", text: $draftName)
                 Button("Start Culling") {
                     if let ids = pendingAssetIDs {
@@ -78,10 +81,13 @@ struct SessionListView: View {
             } message: {
                 Text("\(pendingAssetIDs?.count ?? 0) photos selected")
             }
-            .alert("Rename session", isPresented: Binding(
-                get: { renameTarget != nil },
-                set: { if !$0 { renameTarget = nil } }
-            )) {
+            .alert(
+                "Rename session",
+                isPresented: Binding(
+                    get: { renameTarget != nil },
+                    set: { if !$0 { renameTarget = nil } }
+                )
+            ) {
                 TextField("Session name", text: $renameText)
                 Button("Rename") {
                     if let target = renameTarget {
@@ -91,19 +97,21 @@ struct SessionListView: View {
                 }
                 Button("Cancel", role: .cancel) { renameTarget = nil }
             }
-            .fullScreenCover(isPresented: Binding(
-                get: { model.currentSession != nil },
-                set: { if !$0 { model.closeSession() } }
-            )) {
+            .fullScreenCover(
+                isPresented: Binding(
+                    get: { model.currentSession != nil },
+                    set: { if !$0 { model.closeSession() } }
+                )
+            ) {
                 SessionView()
             }
         }
         .onAppear {
             model.refreshSessionList()
             #if DEBUG
-            // Screenshot/demo hook: `-demo.openCamera YES` opens the camera
-            // session straight away (pair with tools/fake_a7rv.py).
-            if UserDefaults.standard.bool(forKey: "demo.openCamera") { model.openCameraSession() }
+                // Screenshot/demo hook: `-demo.openCamera YES` opens the camera
+                // session straight away (pair with tools/fake_a7rv.py).
+                if UserDefaults.standard.bool(forKey: "demo.openCamera") { model.openCameraSession() }
             #endif
         }
     }

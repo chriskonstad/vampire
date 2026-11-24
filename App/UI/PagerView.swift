@@ -1,9 +1,8 @@
-import SwiftUI
-
 import BurstClustering
 import CullIntent
-import VampireIndex
 import SonyMakerNotes
+import SwiftUI
+import VampireIndex
 
 /// Full-screen culling pager with two axes:
 /// - horizontal: swipe between positions (a single photo or a whole burst)
@@ -118,9 +117,11 @@ struct PagerView: View {
                 .foregroundStyle(.green)
             Text("All photos decided")
                 .font(.title3.bold())
-            Text("^[\(counts[.keep, default: 0]) keep](inflect: true), ^[\(counts[.reject, default: 0]) reject](inflect: true). \(model.isCameraSession ? "Import your keepers" : "Apply") from the grid when you're ready.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+            Text(
+                "^[\(counts[.keep, default: 0]) keep](inflect: true), ^[\(counts[.reject, default: 0]) reject](inflect: true). \(model.isCameraSession ? "Import your keepers" : "Apply") from the grid when you're ready."
+            )
+            .multilineTextAlignment(.center)
+            .foregroundStyle(.secondary)
             HStack(spacing: 12) {
                 Button("Keep Culling") { showsCompletion = false }
                     .buttonStyle(.bordered)
@@ -155,10 +156,10 @@ struct PagerView: View {
     /// one adaptive layout), so it also applies to any future wide screen.
     static var expandedMinWidth: CGFloat {
         #if DEBUG
-        // `-demo.expandedMinWidth 400` previews the expanded layout on
-        // simulators without the iPhone Duo's screen.
-        let override = UserDefaults.standard.double(forKey: "demo.expandedMinWidth")
-        if override > 0 { return override }
+            // `-demo.expandedMinWidth 400` previews the expanded layout on
+            // simulators without the iPhone Duo's screen.
+            let override = UserDefaults.standard.double(forKey: "demo.expandedMinWidth")
+            if override > 0 { return override }
         #endif
         return 600
     }
@@ -174,42 +175,46 @@ struct PagerView: View {
         // landscape), so: no header row — its controls top the rail — and
         // faces share one row with the signal chips.
         HStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    HStack(spacing: 4) {
-                        FaceStripView(assetID: currentAsset?.id, cropSize: 56)
-                            .fixedSize(horizontal: true, vertical: false)
-                        SignalStripView(record: currentAsset.flatMap { model.index[$0.id] })
-                    }
+            VStack(spacing: 0) {
+                HStack(spacing: 4) {
+                    FaceStripView(assetID: currentAsset?.id, cropSize: 56)
+                        .fixedSize(horizontal: true, vertical: false)
+                    SignalStripView(record: currentAsset.flatMap { model.index[$0.id] })
+                }
+                .frame(height: 76)
+                pager
+                if currentStackItems.count > 1 {
+                    BurstFilmstrip(
+                        items: currentStackItems,
+                        currentID: currentAsset?.id,
+                        bestID: bestMemberID(in: currentStackItems),
+                        revision: model.verdictRevision,
+                        onSelect: { go(to: $0) }
+                    )
                     .frame(height: 76)
-                    pager
-                    if currentStackItems.count > 1 {
-                        BurstFilmstrip(
-                            items: currentStackItems,
-                            currentID: currentAsset?.id,
-                            bestID: bestMemberID(in: currentStackItems),
-                            revision: model.verdictRevision,
-                            onSelect: { go(to: $0) }
-                        )
-                        .frame(height: 76)
-                        .padding(.top, 6)
-                    }
-                    positionBar
+                    .padding(.top, 6)
                 }
-                VStack(spacing: 10) {
-                    Button { close() } label: {
-                        Image(systemName: "chevron.down").frame(width: 44, height: 36)
-                    }
-                    counterView
-                    Button { showsAFOverlay.toggle() } label: {
-                        Image(systemName: showsAFOverlay ? "viewfinder" : "viewfinder.trianglebadge.exclamationmark")
-                            .frame(width: 44, height: 36)
-                    }
-                    tallyView
-                    rightRail
+                positionBar
+            }
+            VStack(spacing: 10) {
+                Button {
+                    close()
+                } label: {
+                    Image(systemName: "chevron.down").frame(width: 44, height: 36)
                 }
-                .foregroundStyle(.white)
-                .frame(width: 84)
-                .padding(.vertical, 8)
+                counterView
+                Button {
+                    showsAFOverlay.toggle()
+                } label: {
+                    Image(systemName: showsAFOverlay ? "viewfinder" : "viewfinder.trianglebadge.exclamationmark")
+                        .frame(width: 44, height: 36)
+                }
+                tallyView
+                rightRail
+            }
+            .foregroundStyle(.white)
+            .frame(width: 84)
+            .padding(.vertical, 8)
         }
     }
 
@@ -287,7 +292,8 @@ struct PagerView: View {
     private var counterView: some View {
         // The camera line is always laid out (blank when unknown) so the
         // header height never changes while paging between photos.
-        let camera = currentAsset
+        let camera =
+            currentAsset
             .flatMap { model.index[$0.id]?.cameraModel }
         return VStack(spacing: 2) {
             Text("\(currentStackIndex + 1) / \(model.order.stacks.count)")
@@ -712,7 +718,8 @@ struct PagerView: View {
     private func advance() {
         guard !allDecided else { return withAnimation { showsCompletion = true } }
         guard let current = currentAsset,
-              let next = model.order.advance(from: current.id, isUndecided: isUndecided(id:)) else { return }
+            let next = model.order.advance(from: current.id, isUndecided: isUndecided(id:))
+        else { return }
         go(to: next)
     }
 
@@ -720,7 +727,8 @@ struct PagerView: View {
     private func advanceToNextStack() {
         guard !allDecided else { return withAnimation { showsCompletion = true } }
         guard let current = currentAsset,
-              let next = model.order.advanceToNextStack(from: current.id, isUndecided: isUndecided(id:)) else { return }
+            let next = model.order.advanceToNextStack(from: current.id, isUndecided: isUndecided(id:))
+        else { return }
         go(to: next)
     }
 
@@ -728,7 +736,9 @@ struct PagerView: View {
     /// of the burst, moves on.
     private func keepThisOne() {
         guard let current = currentAsset else { return }
-        let changes = currentStackItems.map { (item: $0, verdict: Verdict?.some($0.id == current.id ? .keep : .reject)) }
+        let changes = currentStackItems.map {
+            (item: $0, verdict: Verdict?.some($0.id == current.id ? .keep : .reject))
+        }
         model.setVerdicts(changes)  // one undo step
         advanceToNextStack()
     }
@@ -736,7 +746,8 @@ struct PagerView: View {
     /// Rejects every frame of the burst you haven't kept (all of them if
     /// none are), as one undo step, and moves on.
     private func rejectBurst() {
-        let changes = currentStackItems
+        let changes =
+            currentStackItems
             .filter { model.verdict(for: $0) != .keep }
             .map { (item: $0, verdict: Verdict?.some(.reject)) }
         model.setVerdicts(changes)
@@ -807,9 +818,13 @@ private struct BurstFilmstrip: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(items) { item in
-                        Button { onSelect(item.id) } label: { cell(item) }
-                            .buttonStyle(.plain)
-                            .id(item.id)
+                        Button {
+                            onSelect(item.id)
+                        } label: {
+                            cell(item)
+                        }
+                        .buttonStyle(.plain)
+                        .id(item.id)
                     }
                 }
                 .padding(.horizontal, 10)
@@ -844,8 +859,10 @@ private struct BurstFilmstrip: View {
         .frame(width: 68 * aspect, height: 68)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .opacity(verdict == .reject ? 0.4 : 1)
-        .overlay(RoundedRectangle(cornerRadius: 6)
-            .strokeBorder(.yellow, lineWidth: item.id == currentID ? 2 : 0))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(.yellow, lineWidth: item.id == currentID ? 2 : 0)
+        )
         .overlay(alignment: .topTrailing) {
             if verdict == .keep || verdict == .reject {
                 Circle().fill(verdict == .keep ? Color.green : Color.red)

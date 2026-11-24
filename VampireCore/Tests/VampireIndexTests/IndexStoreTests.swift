@@ -1,14 +1,15 @@
-import XCTest
+import CullIntent
 import GRDB
 import SonyMakerNotes
-import CullIntent
+import XCTest
+
 @testable import VampireIndex
 
 final class IndexStoreTests: XCTestCase {
     var store: IndexStore!
 
     override func setUpWithError() throws {
-        store = try IndexStore() // in-memory
+        store = try IndexStore()  // in-memory
     }
 
     func record(_ id: String, date: TimeInterval = 0, indexed: Bool = false) -> AssetIndexRecord {
@@ -79,10 +80,11 @@ final class IndexStoreTests: XCTestCase {
 
     func testFacesReplaceAndQualityOrdering() throws {
         try store.upsert(record("a", indexed: true))
-        try store.replaceFaces([
-            FaceRecord(assetID: "a", x: 0.1, y: 0.1, width: 0.2, height: 0.2, captureQuality: 0.3),
-            FaceRecord(assetID: "a", x: 0.5, y: 0.5, width: 0.2, height: 0.2, captureQuality: 0.9),
-        ], forAsset: "a")
+        try store.replaceFaces(
+            [
+                FaceRecord(assetID: "a", x: 0.1, y: 0.1, width: 0.2, height: 0.2, captureQuality: 0.3),
+                FaceRecord(assetID: "a", x: 0.5, y: 0.5, width: 0.2, height: 0.2, captureQuality: 0.9),
+            ], forAsset: "a")
 
         let faces = try store.faces(forAsset: "a")
         XCTAssertEqual(faces.map(\.captureQuality), [0.9, 0.3])
@@ -180,7 +182,7 @@ final class IndexStoreTests: XCTestCase {
         log1.set(.reject, for: "a")
         log1.set(.keep, for: "b")
         log1.set(.maybe, for: "c")
-        log1.undo() // c cleared
+        log1.undo()  // c cleared
 
         // Sitting 2 (relaunch): same store, same session.
         let log2 = try store.makeIntentLog(forSession: session.id)
@@ -297,10 +299,10 @@ final class IndexStoreTests: XCTestCase {
         try v1Queue.write { db in
             try db.execute(
                 sql: """
-                INSERT INTO asset_index
-                    (assetID, pixelWidth, pixelHeight, isRAW, faceCount, indexedAt)
-                VALUES ('old-asset', 9504, 6336, 1, 0, ?)
-                """,
+                    INSERT INTO asset_index
+                        (assetID, pixelWidth, pixelHeight, isRAW, faceCount, indexedAt)
+                    VALUES ('old-asset', 9504, 6336, 1, 0, ?)
+                    """,
                 arguments: [Date(timeIntervalSince1970: 1_750_000_000)]
             )
         }
@@ -308,7 +310,7 @@ final class IndexStoreTests: XCTestCase {
 
         let upgraded = try IndexStore(path: path)
         let fetched = try XCTUnwrap(try upgraded.asset(id: "old-asset"))
-        XCTAssertNil(fetched.focusFrameWidth) // new column, backfilled on re-index
+        XCTAssertNil(fetched.focusFrameWidth)  // new column, backfilled on re-index
         // Pre-signal rows survive but drop out of the resume set: the indexer
         // re-processes them to fill in the HUD signals.
         XCTAssertTrue(try upgraded.indexedAssetIDs().isEmpty)

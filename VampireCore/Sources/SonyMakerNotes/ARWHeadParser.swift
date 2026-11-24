@@ -29,7 +29,7 @@ public struct ARWMetadata: Equatable, Sendable {
 /// non-`truncated` error, cancel the request. EXIF + MakerNotes live in
 /// roughly the first 1MB, so `recommendedHeadLength` is the give-up point.
 public enum ARWHeadParser {
-    public static let recommendedHeadLength = 1 << 20 // 1 MiB
+    public static let recommendedHeadLength = 1 << 20  // 1 MiB
 
     enum ExifTag {
         static let make: UInt16 = 0x010F
@@ -59,7 +59,7 @@ public enum ARWHeadParser {
         }
 
         guard let exifPointer = ifd0.entry(tag: ExifTag.exifIFDPointer) else {
-            return metadata // no EXIF IFD: unusual but not malformed
+            return metadata  // no EXIF IFD: unusual but not malformed
         }
         let exifOffset = Int(try TIFF.unsignedValues(of: exifPointer, in: reader)[0])
         let exifIFD = try TIFF.parseIFD(in: reader, at: exifOffset)
@@ -108,7 +108,7 @@ public enum ARWHeadParser {
                 byteCount: entry.count
             )
         } catch ARWParseError.malformed {
-            return nil // unrecognized vendor: keep the EXIF we already have
+            return nil  // unrecognized vendor: keep the EXIF we already have
         }
     }
 
@@ -126,9 +126,10 @@ public enum ARWHeadParser {
         guard var date = formatter.date(from: string) else { return nil }
 
         if let subSecEntry = exifIFD.entry(tag: ExifTag.subSecTimeOriginal),
-           let subSec = try? TIFF.asciiValue(of: subSecEntry, in: reader),
-           !subSec.isEmpty,
-           let fraction = Double("0.\(subSec)") {
+            let subSec = try? TIFF.asciiValue(of: subSecEntry, in: reader),
+            !subSec.isEmpty,
+            let fraction = Double("0.\(subSec)")
+        {
             date.addTimeInterval(fraction)
         }
         return date

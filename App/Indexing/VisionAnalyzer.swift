@@ -1,8 +1,7 @@
-import Vision
 import CoreGraphics
-
-import VampireIndex
 import SonyMakerNotes
+import VampireIndex
+import Vision
 
 /// Signal extraction for the indexing pass, all on ~1024px previews — never
 /// full res. One pass per asset, persisted; the UI only ever reads the index
@@ -17,12 +16,12 @@ struct VisionAnalysis {
     var featurePrint: [Float]?
 
     // HUD signals
-    var aestheticScore: Double?     // -1...1 overall
-    var isUtility: Bool?            // screenshots/receipts/docs
-    var horizonDegrees: Double?     // signed tilt; nil = no horizon found
-    var salientRect: SonyMakerNotes.NormalizedRect? // attention box, top-left normalized
+    var aestheticScore: Double?  // -1...1 overall
+    var isUtility: Bool?  // screenshots/receipts/docs
+    var horizonDegrees: Double?  // signed tilt; nil = no horizon found
+    var salientRect: SonyMakerNotes.NormalizedRect?  // attention box, top-left normalized
     var clippedHighlights: Double?  // fraction of blown pixels
-    var crushedShadows: Double?     // fraction of crushed pixels
+    var crushedShadows: Double?  // fraction of crushed pixels
     var meanLuma: Double?
 
     var closedEyesCount: Int {
@@ -34,7 +33,9 @@ enum VisionAnalyzer {
     /// Eye-openness below this reads as a blink.
     static let blinkThreshold = 0.18
 
-    static func analyze(cgImage: CGImage, assetID: String, orientation: CGImagePropertyOrientation = .up) -> VisionAnalysis {
+    static func analyze(cgImage: CGImage, assetID: String, orientation: CGImagePropertyOrientation = .up)
+        -> VisionAnalysis
+    {
         let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation)
 
         let faceRequest = VNDetectFaceRectanglesRequest()
@@ -111,7 +112,8 @@ enum VisionAnalyzer {
 
         var salientRect: SonyMakerNotes.NormalizedRect?
         if let salient = (saliencyRequest.results?.first as? VNSaliencyImageObservation)?.salientObjects,
-           !salient.isEmpty {
+            !salient.isEmpty
+        {
             let union = salient.dropFirst().reduce(salient[0].boundingBox) { $0.union($1.boundingBox) }
             salientRect = SonyMakerNotes.NormalizedRect(
                 x: union.origin.x,
@@ -153,7 +155,8 @@ enum VisionAnalyzer {
     private static func aspectRatio(of region: VNFaceLandmarkRegion2D) -> Double? {
         let points = region.normalizedPoints
         guard points.count >= 4 else { return nil }
-        let xs = points.map(\.x), ys = points.map(\.y)
+        let xs = points.map(\.x)
+        let ys = points.map(\.y)
         let width = Double(xs.max()! - xs.min()!)
         let height = Double(ys.max()! - ys.min()!)
         guard width > 0 else { return nil }
@@ -166,21 +169,24 @@ enum VisionAnalyzer {
     /// highlights, crushed shadows, and mean luminance.
     static func exposureStats(of image: CGImage) -> (clipped: Double, crushed: Double, mean: Double)? {
         let side = 64
-        guard let context = CGContext(
-            data: nil, width: side, height: side,
-            bitsPerComponent: 8, bytesPerRow: side * 4,
-            space: CGColorSpace(name: CGColorSpace.sRGB)!,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return nil }
+        guard
+            let context = CGContext(
+                data: nil, width: side, height: side,
+                bitsPerComponent: 8, bytesPerRow: side * 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        else { return nil }
         context.interpolationQuality = .low
         context.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
         guard let data = context.data else { return nil }
 
         let pixels = data.bindMemory(to: UInt8.self, capacity: side * side * 4)
-        var clipped = 0, crushed = 0
+        var clipped = 0
+        var crushed = 0
         var total = 0.0
         let count = side * side
-        for i in 0 ..< count {
+        for i in 0..<count {
             let r = Double(pixels[i * 4])
             let g = Double(pixels[i * 4 + 1])
             let b = Double(pixels[i * 4 + 2])
@@ -202,9 +208,11 @@ enum VisionAnalyzer {
         for box: CGRect,
         in faces: [(box: CGRect, quality: Double?, eyesOpen: Double?)]
     ) -> Int? {
-        guard let index = faces.indices.max(by: {
-            overlapRatio(faces[$0].box, box) < overlapRatio(faces[$1].box, box)
-        }), overlapRatio(faces[index].box, box) > 0.3 else { return nil }
+        guard
+            let index = faces.indices.max(by: {
+                overlapRatio(faces[$0].box, box) < overlapRatio(faces[$1].box, box)
+            }), overlapRatio(faces[index].box, box) > 0.3
+        else { return nil }
         return index
     }
 
@@ -212,7 +220,8 @@ enum VisionAnalyzer {
     static func overlapRatio(_ a: CGRect, _ b: CGRect) -> CGFloat {
         let intersection = a.intersection(b)
         guard !intersection.isNull, !intersection.isEmpty else { return 0 }
-        let unionArea = a.width * a.height + b.width * b.height
+        let unionArea =
+            a.width * a.height + b.width * b.height
             - intersection.width * intersection.height
         guard unionArea > 0 else { return 0 }
         return (intersection.width * intersection.height) / unionArea

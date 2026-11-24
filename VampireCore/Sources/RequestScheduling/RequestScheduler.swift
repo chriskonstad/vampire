@@ -43,7 +43,7 @@ public struct RequestScheduler<Key: Hashable> {
     public mutating func enqueue(_ key: Key, priority: RequestPriority) {
         if var existing = pending[key] {
             existing.priority = priority
-            existing.generation = generation // touching a key revalidates it
+            existing.generation = generation  // touching a key revalidates it
             pending[key] = existing
         } else {
             pending[key] = Pending(key: key, priority: priority, generation: generation, sequence: nextSequence)
@@ -67,10 +67,12 @@ public struct RequestScheduler<Key: Hashable> {
 
     /// Removes and returns the highest-priority, oldest-within-tier request.
     public mutating func dequeue() -> (key: Key, priority: RequestPriority)? {
-        guard let best = pending.values.max(by: { a, b in
-            if a.priority != b.priority { return a.priority < b.priority }
-            return a.sequence > b.sequence // older (smaller sequence) wins ties
-        }) else { return nil }
+        guard
+            let best = pending.values.max(by: { a, b in
+                if a.priority != b.priority { return a.priority < b.priority }
+                return a.sequence > b.sequence  // older (smaller sequence) wins ties
+            })
+        else { return nil }
         pending.removeValue(forKey: best.key)
         return (best.key, best.priority)
     }

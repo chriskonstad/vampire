@@ -108,8 +108,9 @@ public enum BurstClusterer {
         for asset in cluster.dropFirst() {
             let previous = result[result.count - 1].last!
             if let a = previous.featurePrint, let b = asset.featurePrint,
-               let distance = featurePrintDistance(a, b),
-               distance > parameters.splitDistance {
+                let distance = featurePrintDistance(a, b),
+                distance > parameters.splitDistance
+            {
                 result.append([asset])
             } else {
                 // Missing prints (still indexing) keep the time grouping.
@@ -129,9 +130,10 @@ public enum BurstClusterer {
             let previous = result[result.count - 1]
             let gap = cluster[0].creationDate.timeIntervalSince(previous.last!.creationDate)
             if gap <= parameters.mergeMaxTimeGap,
-               let a = previous.last!.featurePrint, let b = cluster[0].featurePrint,
-               let distance = featurePrintDistance(a, b),
-               distance < parameters.mergeDistance {
+                let a = previous.last!.featurePrint, let b = cluster[0].featurePrint,
+                let distance = featurePrintDistance(a, b),
+                distance < parameters.mergeDistance
+            {
                 result[result.count - 1] += cluster
             } else {
                 result.append(cluster)
@@ -151,8 +153,9 @@ public func nearestAssets(
 ) -> [(id: String, distance: Float)] {
     assets.compactMap { asset -> (String, Float)? in
         guard asset.id != excludedID,
-              let print = asset.featurePrint,
-              let distance = featurePrintDistance(query, print) else { return nil }
+            let print = asset.featurePrint,
+            let distance = featurePrintDistance(query, print)
+        else { return nil }
         return (asset.id, distance)
     }
     .sorted { $0.1 < $1.1 }

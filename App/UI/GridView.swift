@@ -1,14 +1,13 @@
+import CullIntent
 import SwiftUI
 import UIKit
-
-import CullIntent
 
 /// The shoot grid. UIKit `UICollectionView` rather than SwiftUI Grid because
 /// scroll perf depends on `UICollectionViewDataSourcePrefetching` driving
 /// the image provider's caching (hard constraint: smoothness).
 struct GridView: UIViewControllerRepresentable {
     @Environment(AppModel.self) private var model
-    @Binding var pagerIndex: Int?
+    @Binding var pagerIndex: PagerDestination?
     /// Passed in as a stored property so SwiftUI reliably re-invokes
     /// updateUIViewController when verdicts change — the model's plain-class
     /// IntentLog is invisible to observation.
@@ -18,7 +17,7 @@ struct GridView: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> GridViewController {
         GridViewController(model: model) { index in
-            pagerIndex = index
+            pagerIndex = PagerDestination(id: index)
         }
     }
 
@@ -82,13 +81,15 @@ final class GridViewController: UIViewController {
     /// Back from the pager: center the photo you were on and ring it.
     func reveal(_ target: AppModel.GridReturn) {
         guard target.token != lastReturn, let collectionView,
-              let index = items.firstIndex(where: { $0.id == target.photoID }) else { return }
+            let index = items.firstIndex(where: { $0.id == target.photoID })
+        else { return }
         lastReturn = target.token
         let previous = returnedID
         returnedID = target.photoID
         for indexPath in collectionView.indexPathsForVisibleItems {
             if let cell = collectionView.cellForItem(at: indexPath) as? ThumbCell,
-               [previous, returnedID].contains(cell.representedAssetID) {
+                [previous, returnedID].contains(cell.representedAssetID)
+            {
                 cell.isReturnedTo = cell.representedAssetID == returnedID
             }
         }
@@ -99,7 +100,8 @@ final class GridViewController: UIViewController {
         // Pulse once the pager has slid away, so the eye finds it.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
             guard let cell = self?.collectionView.cellForItem(at: indexPath) as? ThumbCell,
-                  cell.representedAssetID == target.photoID else { return }
+                cell.representedAssetID == target.photoID
+            else { return }
             cell.pulse()
         }
     }
@@ -141,11 +143,13 @@ final class GridViewController: UIViewController {
         cell.showsAFBadge = record?.focusLocation != nil
         cell.faceCount = record?.faceCount ?? 0
         // Badge the burst's top frame — where the pager opens it.
-        cell.isBurstLeader = model.order.stack(containing: item.id)
+        cell.isBurstLeader =
+            model.order.stack(containing: item.id)
             .map { $0.isBurst && $0.memberIDs.first == item.id } ?? false
         cell.score = record?.aestheticScore100
         cell.warnsClosedEyes = (record?.closedEyesCount ?? 0) > 0
-        cell.warnsExposure = (record?.clippedHighlights ?? 0) > 0.03
+        cell.warnsExposure =
+            (record?.clippedHighlights ?? 0) > 0.03
             || (record?.crushedShadows ?? 0) > 0.12
         cell.isUtility = record?.isUtility ?? false
     }
@@ -156,10 +160,12 @@ extension GridViewController: UICollectionViewDataSource, UICollectionViewDelega
         items.count
     }
 
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(
-            withReuseIdentifier: ThumbCell.reuseID, for: indexPath
-        ) as! ThumbCell
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell
+    {
+        let cell =
+            collectionView.dequeueReusableCell(
+                withReuseIdentifier: ThumbCell.reuseID, for: indexPath
+            ) as! ThumbCell
         let item = items[indexPath.item]
         cell.representedAssetID = item.id
         cell.isReturnedTo = item.id == returnedID
@@ -175,8 +181,10 @@ extension GridViewController: UICollectionViewDataSource, UICollectionViewDelega
     /// The ring is applied as each cell comes on screen: cells configured
     /// ahead of time (prefetch, or while the pager covered the grid)
     /// predate the return and would miss it.
-    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell,
-                        forItemAt indexPath: IndexPath) {
+    func collectionView(
+        _ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell,
+        forItemAt indexPath: IndexPath
+    ) {
         guard let cell = cell as? ThumbCell, items.indices.contains(indexPath.item) else { return }
         cell.isReturnedTo = items[indexPath.item].id == returnedID
     }
@@ -213,7 +221,7 @@ final class ThumbCell: UICollectionViewCell {
             case .reject:
                 verdictDot.isHidden = false
                 verdictDot.backgroundColor = .systemRed
-                imageView.alpha = 0.35 // rejected frames recede
+                imageView.alpha = 0.35  // rejected frames recede
             case .maybe:
                 verdictDot.isHidden = false
                 verdictDot.backgroundColor = .systemYellow
@@ -244,8 +252,10 @@ final class ThumbCell: UICollectionViewCell {
         UIView.animate(withDuration: 0.18, delay: 0, options: [.curveEaseOut]) {
             self.transform = CGAffineTransform(scaleX: 1.12, y: 1.12)
         } completion: { _ in
-            UIView.animate(withDuration: 0.45, delay: 0, usingSpringWithDamping: 0.55,
-                           initialSpringVelocity: 0, options: []) {
+            UIView.animate(
+                withDuration: 0.45, delay: 0, usingSpringWithDamping: 0.55,
+                initialSpringVelocity: 0, options: []
+            ) {
                 self.transform = .identity
             } completion: { _ in
                 self.layer.zPosition = 0
@@ -259,7 +269,9 @@ final class ThumbCell: UICollectionViewCell {
             scoreChip.isHidden = score == nil
             if let score {
                 scoreChip.text = "★\(score)"
-                scoreChip.textColor = score >= 70 ? .systemYellow
+                scoreChip.textColor =
+                    score >= 70
+                    ? .systemYellow
                     : score >= 45 ? .white : .systemGray2
             }
         }
@@ -334,7 +346,7 @@ final class ThumbCell: UICollectionViewCell {
         let warningStack = UIStackView(arrangedSubviews: [utilityBadge, exposureWarning, eyesWarning])
         warningStack.axis = .horizontal
         warningStack.spacing = 3
-        [eyesWarning, exposureWarning, utilityBadge].forEach { $0.isHidden = true }
+        for warning in [eyesWarning, exposureWarning, utilityBadge] { warning.isHidden = true }
         warningStack.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(warningStack)
 

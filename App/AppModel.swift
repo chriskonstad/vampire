@@ -1,11 +1,10 @@
-import SwiftUI
-import Photos
-import os.log
-
-import VampireIndex
-import CullIntent
 import BurstClustering
+import CullIntent
+import Photos
 import SonyMakerNotes
+import SwiftUI
+import VampireIndex
+import os.log
 
 let log = Logger(subsystem: "app.vampire", category: "app")
 
@@ -255,7 +254,7 @@ final class AppModel {
     private func scheduleRecluster() {
         guard reclusterTask == nil else { return }
         reclusterTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1)) // debounce streaming updates
+            try? await Task.sleep(for: .seconds(1))  // debounce streaming updates
             guard let self, !Task.isCancelled else { return }
             self.reclusterTask = nil
             self.recluster()
@@ -309,9 +308,10 @@ final class AppModel {
         var best: [String: String] = [:]
         for burst in bursts { best[burst.id] = bestMemberID(among: burst.assetIDs) }
         let pinned = pinning ? pagerAnchorID.flatMap { order.stack(containing: $0) } : nil
-        order = CullOrder(photos: items.map { ($0.id, $0.creationDate) },
-                          bursts: bursts.map { ($0.id, $0.assetIDs) },
-                          settings: orderSettings, best: best, pinned: pinned)
+        order = CullOrder(
+            photos: items.map { ($0.id, $0.creationDate) },
+            bursts: bursts.map { ($0.id, $0.assetIDs) },
+            settings: orderSettings, best: best, pinned: pinned)
         orderedItems = order.flat.compactMap { itemByID[$0] }
     }
 
@@ -337,14 +337,17 @@ final class AppModel {
     func bestMemberID(among ids: [String]) -> String? {
         func score(_ id: String) -> (Int, Int, Double, Double) {
             let record = index[id]
-            return ((record?.closedEyesCount ?? 0) == 0 ? 1 : 0,
-                    record?.faceCount ?? 0,
-                    record?.bestFaceQuality ?? 0,
-                    record?.aestheticScore ?? -1)
+            return (
+                (record?.closedEyesCount ?? 0) == 0 ? 1 : 0,
+                record?.faceCount ?? 0,
+                record?.bestFaceQuality ?? 0,
+                record?.aestheticScore ?? -1
+            )
         }
         let scored = ids.map { ($0, score($0)) }
         guard let top = scored.max(by: { $0.1 < $1.1 }),
-              scored.filter({ $0.1 == top.1 }).count == 1 else { return nil }
+            scored.filter({ $0.1 == top.1 }).count == 1
+        else { return nil }
         return top.0
     }
 
@@ -522,9 +525,10 @@ final class AppModel {
         if !fresh.isEmpty {
             try? store.addAssets(fresh.map(\.indexID), toSession: session.id)
             for photo in fresh where index[photo.indexID] == nil {
-                let stub = AssetIndexRecord(assetID: photo.indexID, creationDate: photo.capturedAt,
-                                            pixelWidth: photo.pixelWidth, pixelHeight: photo.pixelHeight,
-                                            isRAW: photo.isRAW)
+                let stub = AssetIndexRecord(
+                    assetID: photo.indexID, creationDate: photo.capturedAt,
+                    pixelWidth: photo.pixelWidth, pixelHeight: photo.pixelHeight,
+                    isRAW: photo.isRAW)
                 try? store.upsert(stub)
                 index[photo.indexID] = stub
             }

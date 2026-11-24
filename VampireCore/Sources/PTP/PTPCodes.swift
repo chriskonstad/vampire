@@ -15,7 +15,7 @@ public enum PTPIPPacketType: UInt32, Sendable {
     case data = 10
     case cancel = 11
     case endData = 12
-    case probeRequest = 13   // ping
+    case probeRequest = 13  // ping
     case probeResponse = 14  // pong
 }
 
@@ -33,7 +33,7 @@ public enum PTPOperation: UInt16, Sendable {
     case getObjectInfo = 0x1008
     case getObject = 0x1009
     case getThumb = 0x100A
-    case deleteObject = 0x100B   // NEVER sent — see CameraTransport.
+    case deleteObject = 0x100B  // NEVER sent — see CameraTransport.
     case getPartialObject = 0x101B
     // Sony vendor ops: the SDIO handshake some Sony modes need before they
     // expose storage (sequence from libgphoto2's Sony support).
@@ -74,6 +74,6 @@ public enum PTPObjectFormat: UInt16, Sendable {
     case association = 0x3001  // folder
     case exifJPEG = 0x3801
     case tiff = 0x380D
-    case sonyRAW = 0xB101      // Sony ARW (vendor-defined)
+    case sonyRAW = 0xB101  // Sony ARW (vendor-defined)
     case unknown = 0x0000
 }

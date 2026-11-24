@@ -1,4 +1,5 @@
 import Foundation
+
 @testable import BurstClustering
 @testable import RequestScheduling
 
@@ -16,7 +17,10 @@ import Foundation
 struct PagerSimulator {
     typealias Loader = WindowedLoader<String, String>
 
-    struct Photo { let id: String; let date: Date }
+    struct Photo {
+        let id: String
+        let date: Date
+    }
 
     private(set) var photos: [Photo]
     private(set) var bursts: [(id: String, memberIDs: [String])]
@@ -47,7 +51,7 @@ struct PagerSimulator {
         var t: TimeInterval = 0
         for (s, size) in stackSizes.enumerated() {
             var members: [String] = []
-            for f in 0 ..< size {
+            for f in 0..<size {
                 let id = "s\(s)f\(f)"
                 photos.append(Photo(id: id, date: Date(timeIntervalSince1970: t)))
                 members.append(id)
@@ -59,8 +63,9 @@ struct PagerSimulator {
         self.photos = photos
         self.bursts = bursts
         if allReady { upstreamReady = Set(photos.map(\.id)) }
-        let order = CullOrder(photos: photos.map { ($0.id, $0.date) }, bursts: bursts,
-                              settings: settings, best: [:])
+        let order = CullOrder(
+            photos: photos.map { ($0.id, $0.date) }, bursts: bursts,
+            settings: settings, best: [:])
         self.order = order
         position = PagerPosition(photoID: order.flat.first, in: order, now: now)
         appear(position.stackID)
@@ -104,7 +109,10 @@ struct PagerSimulator {
         let target = min(max(index + delta, 0), order.stacks.count - 1)
         guard target != index else { return }
         let stackID = order.stacks[target].id
-        if rebuilt { viewShown[stackID] = nil; scrolling[stackID] = nil }
+        if rebuilt {
+            viewShown[stackID] = nil
+            scrolling[stackID] = nil
+        }
         if appearsFirst { appear(stackID) }
         position.pageChanged(to: stackID, in: order, now: now)
         if let pending = position.pendingPhotoID(inStack: stackID) { scrolling[stackID] = pending }
@@ -124,7 +132,9 @@ struct PagerSimulator {
     mutating func rejectBurst() {
         guard let stack = currentStack, let current else { return }
         for id in stack.memberIDs { verdicts[id] = true }
-        if let next = order.advanceToNextStack(from: current, isUndecided: { self.verdicts[$0] == nil }) { go(to: next) }
+        if let next = order.advanceToNextStack(from: current, isUndecided: { self.verdicts[$0] == nil }) {
+            go(to: next)
+        }
         focusLoader()
     }
 
@@ -208,8 +218,9 @@ struct PagerSimulator {
     private mutating func rebuildOrder(pinning: Bool) {
         let old = order
         let pinned = pinning ? current.flatMap { order.stack(containing: $0) } : nil
-        order = CullOrder(photos: photos.map { ($0.id, $0.date) }, bursts: bursts,
-                          settings: settings, best: best, pinned: pinned)
+        order = CullOrder(
+            photos: photos.map { ($0.id, $0.date) }, bursts: bursts,
+            settings: settings, best: best, pinned: pinned)
         for stackID in position.reconcile(from: old, to: order) {
             // PagerView.topResets: built pages scroll back to their top.
             if viewShown[stackID] != nil, let top = stack(ofStackID: stackID)?.memberIDs.first {
@@ -250,7 +261,8 @@ struct PagerSimulator {
         if !stack.memberIDs.contains(current) { problems.append("current \(current) not in its stack") }
         if !loader.window.contains(current) { problems.append("current \(current) outside the loader window") }
         if loader.image(for: current) == nil, !loader.isInFlight(current), !loader.isQueued(current),
-           !loader.hasGivenUp(on: current) {
+            !loader.hasGivenUp(on: current)
+        {
             problems.append("current \(current) neither loaded nor requested (hang)")
         }
         if loader.storedCount > loader.window.count + loader.extraKept {
@@ -258,7 +270,8 @@ struct PagerSimulator {
         }
         // The indicator shows the screen unless a move is still on its way.
         if stack.isBurst, position.pendingPhotoID(inStack: stack.id) == nil,
-           let shown = viewShown[stack.id], shown != current {
+            let shown = viewShown[stack.id], shown != current
+        {
             problems.append("indicator says \(current), screen shows \(shown)")
         }
         return problems

@@ -31,8 +31,10 @@ public struct IntentRecord: Equatable, Codable, Sendable {
     /// asset, so replay needs no batch logic beyond the sets.
     public var batchID: String?
 
-    public init(operation: Operation, assetID: String, verdict: Verdict?, timestamp: Date,
-                batchID: String? = nil) {
+    public init(
+        operation: Operation, assetID: String, verdict: Verdict?, timestamp: Date,
+        batchID: String? = nil
+    ) {
         self.operation = operation
         self.assetID = assetID
         self.verdict = verdict
@@ -137,14 +139,16 @@ public final class IntentLog {
 
     private func applySet(_ verdict: Verdict?, for assetID: String, batchID: String?, journal: Bool) {
         let previous = verdicts[assetID]
-        guard previous != verdict else { return } // no-op sets don't pollute history
+        guard previous != verdict else { return }  // no-op sets don't pollute history
 
         store(verdict, for: assetID)
         undoStack.append(Mutation(assetID: assetID, previousVerdict: previous, newVerdict: verdict, batchID: batchID))
         redoStack.removeAll()
         if journal {
-            onAppend?(IntentRecord(operation: .set, assetID: assetID, verdict: verdict, timestamp: now(),
-                                   batchID: batchID))
+            onAppend?(
+                IntentRecord(
+                    operation: .set, assetID: assetID, verdict: verdict, timestamp: now(),
+                    batchID: batchID))
         }
     }
 
@@ -154,10 +158,11 @@ public final class IntentLog {
         store(mutation.previousVerdict, for: mutation.assetID)
         redoStack.append(mutation)
         if journal {
-            onAppend?(IntentRecord(
-                operation: .undo, assetID: mutation.assetID,
-                verdict: mutation.previousVerdict, timestamp: now()
-            ))
+            onAppend?(
+                IntentRecord(
+                    operation: .undo, assetID: mutation.assetID,
+                    verdict: mutation.previousVerdict, timestamp: now()
+                ))
         }
         return mutation.assetID
     }
@@ -168,10 +173,11 @@ public final class IntentLog {
         store(mutation.newVerdict, for: mutation.assetID)
         undoStack.append(mutation)
         if journal {
-            onAppend?(IntentRecord(
-                operation: .redo, assetID: mutation.assetID,
-                verdict: mutation.newVerdict, timestamp: now()
-            ))
+            onAppend?(
+                IntentRecord(
+                    operation: .redo, assetID: mutation.assetID,
+                    verdict: mutation.newVerdict, timestamp: now()
+                ))
         }
         return mutation.assetID
     }

@@ -17,8 +17,10 @@ public struct FocusLocation: Equatable, Codable, Sendable {
     public var frameWidth: Int?
     public var frameHeight: Int?
 
-    public init(imageWidth: Int, imageHeight: Int, x: Int, y: Int,
-                frameWidth: Int? = nil, frameHeight: Int? = nil) {
+    public init(
+        imageWidth: Int, imageHeight: Int, x: Int, y: Int,
+        frameWidth: Int? = nil, frameHeight: Int? = nil
+    ) {
         self.imageWidth = imageWidth
         self.imageHeight = imageHeight
         self.x = x
@@ -38,7 +40,8 @@ public struct FocusLocation: Equatable, Codable, Sendable {
     /// wrote a frame size (A7RV does: 0x2037).
     public var normalizedFrame: (x: Double, y: Double, width: Double, height: Double)? {
         guard let point = normalizedPoint,
-              let frameWidth, let frameHeight, frameWidth > 0, frameHeight > 0 else { return nil }
+            let frameWidth, let frameHeight, frameWidth > 0, frameHeight > 0
+        else { return nil }
         let w = Double(frameWidth) / Double(imageWidth)
         let h = Double(frameHeight) / Double(imageHeight)
         return (point.x - w / 2, point.y - h / 2, w, h)
@@ -140,7 +143,8 @@ enum SonyMakerNote {
                 // big blobs (0x94xx ciphered sections etc.) — those need
                 // per-model handling we won't build without fixtures.
                 if entry.count <= 16,
-                   let values = try? TIFF.unsignedValues(of: entry, in: reader) {
+                    let values = try? TIFF.unsignedValues(of: entry, in: reader)
+                {
                     result.rawTagValues[entry.tag] = values
                 }
             }
@@ -162,12 +166,13 @@ enum SonyMakerNote {
             return false
         }
         let probe = min(Int(count), 4)
-        for i in 0 ..< probe {
+        for i in 0..<probe {
             let entryOffset = offset + 2 + i * 12
             guard let rawType = try? reader.uint16(at: entryOffset + 2),
-                  TIFF.FieldType(rawValue: rawType) != nil,
-                  let entryCount = try? reader.uint32(at: entryOffset + 4),
-                  entryCount < 1 << 24 else {
+                TIFF.FieldType(rawValue: rawType) != nil,
+                let entryCount = try? reader.uint32(at: entryOffset + 4),
+                entryCount < 1 << 24
+            else {
                 return false
             }
         }

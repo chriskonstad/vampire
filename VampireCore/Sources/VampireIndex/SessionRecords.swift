@@ -20,8 +20,10 @@ public struct CullSessionRecord: Codable, Equatable, Sendable, Identifiable {
         case camera
     }
 
-    public init(id: String = UUID().uuidString, name: String, createdAt: Date,
-                lastOpenedAt: Date? = nil, kind: Kind = .library) {
+    public init(
+        id: String = UUID().uuidString, name: String, createdAt: Date,
+        lastOpenedAt: Date? = nil, kind: Kind = .library
+    ) {
         self.id = id
         self.name = name
         self.createdAt = createdAt

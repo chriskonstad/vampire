@@ -33,19 +33,27 @@ struct CameraStatusRow: View {
                         .font(.caption).buttonStyle(.bordered)
                 }
                 CameraNetworkMenu(camera: camera)
-                Button { showsLog = true } label: { Image(systemName: "text.alignleft") }
-                    .font(.caption)
+                Button {
+                    showsLog = true
+                } label: {
+                    Image(systemName: "text.alignleft")
+                }
+                .font(.caption)
             }
             if let p = camera.importProgress {
                 HStack(spacing: 10) {
                     // Whole-batch progress including the RAW mid-stream.
-                    ProgressView(value: Double(p.done) + (camera.importWaitingForCamera ? 0 : camera.importFileFraction),
-                                 total: Double(max(p.total, 1))) {
-                        Text(camera.importWaitingForCamera
-                             ? "Import paused — waiting for the camera (\(p.done)/\(p.total) done)"
-                             : "Importing keeper \(min(p.done + 1, p.total)) of \(p.total) — full RAW")
-                            .font(.caption2)
-                            .foregroundStyle(camera.importWaitingForCamera ? .orange : .primary)
+                    ProgressView(
+                        value: Double(p.done) + (camera.importWaitingForCamera ? 0 : camera.importFileFraction),
+                        total: Double(max(p.total, 1))
+                    ) {
+                        Text(
+                            camera.importWaitingForCamera
+                                ? "Import paused — waiting for the camera (\(p.done)/\(p.total) done)"
+                                : "Importing keeper \(min(p.done + 1, p.total)) of \(p.total) — full RAW"
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(camera.importWaitingForCamera ? .orange : .primary)
                     }
                     Button("Cancel") { camera.cancelImport() }.font(.caption)
                 }
@@ -64,7 +72,9 @@ struct CameraStatusRow: View {
 
     private var subtitle: String {
         // The empty-session panel already shows the problem; don't repeat it.
-        if showsConnect, !camera.isConnected, !camera.isSearching, let problem = camera.connectProblem { return problem }
+        if showsConnect, !camera.isConnected, !camera.isSearching, let problem = camera.connectProblem {
+            return problem
+        }
         let ids = itemIDs.isEmpty ? camera.photos.map(\.indexID) : itemIDs
         let cached = ids.filter { camera.previewURL(forIndexID: $0) != nil }.count
         return "\(cached)/\(ids.count) cached for offline culling"
@@ -108,11 +118,15 @@ struct CameraNetworkMenu: View {
             if let ssid = camera.link.cameraSSID, camera.link.hasSavedCamera {
                 Section("Camera Wi-Fi") { Text(ssid) }
             }
-            Button { camera.searchThisNetwork() } label: {
+            Button {
+                camera.searchThisNetwork()
+            } label: {
                 Label("Search This Wi-Fi Instead", systemImage: "magnifyingglass")
             }
             if camera.link.hasSavedCamera {
-                Button(role: .destructive) { camera.link.forget() } label: {
+                Button(role: .destructive) {
+                    camera.link.forget()
+                } label: {
                     Label("Forget Camera Wi-Fi", systemImage: "wifi.slash")
                 }
             }
@@ -135,15 +149,19 @@ struct CameraConnectPanel: View {
                 Image(systemName: "camera.badge.ellipsis").font(.system(size: 44)).foregroundStyle(.secondary)
                     .padding(.top, 40)
                 Text("Cull straight off your camera").font(.title3.bold())
-                Text("On the camera: MENU → Network → Cnct./Remote Sht. → Remote Shooting On, with Wi-Fi Direct. Then tap Connect — the first time, pick your camera's Wi-Fi and enter the password it shows.")
-                    .font(.callout).foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center).padding(.horizontal)
+                Text(
+                    "On the camera: MENU → Network → Cnct./Remote Sht. → Remote Shooting On, with Wi-Fi Direct. Then tap Connect — the first time, pick your camera's Wi-Fi and enter the password it shows."
+                )
+                .font(.callout).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).padding(.horizontal)
                 if camera.isSearching {
                     ProgressView(searchingTitle(camera))
                 } else if case .connecting = camera.phase {
                     ProgressView("Connecting…")
                 } else {
-                    Button { camera.findAndConnect() } label: {
+                    Button {
+                        camera.findAndConnect()
+                    } label: {
                         Label("Connect", systemImage: "dot.radiowaves.left.and.right")
                             .frame(minWidth: 180)
                     }
@@ -227,16 +245,27 @@ struct CameraPasswordPrompt: ViewModifier {
     @State private var password = ""
 
     func body(content: Content) -> some View {
-        content.alert("Camera Wi-Fi password", isPresented: Binding(
-            get: { if case .needsPassword = link.state { true } else { false } },
-            set: { if !$0, case .needsPassword = link.state { link.cancelSetup() } }
-        )) {
+        content.alert(
+            "Camera Wi-Fi password",
+            isPresented: Binding(
+                get: { if case .needsPassword = link.state { true } else { false } },
+                set: { if !$0, case .needsPassword = link.state { link.cancelSetup() } }
+            )
+        ) {
             SecureField("Password", text: $password)
-            Button("Join") { link.provide(password: password); password = "" }
-            Button("Cancel", role: .cancel) { link.cancelSetup(); password = "" }
+            Button("Join") {
+                link.provide(password: password)
+                password = ""
+            }
+            Button("Cancel", role: .cancel) {
+                link.cancelSetup()
+                password = ""
+            }
         } message: {
             if case .needsPassword(let ssid) = link.state {
-                Text("Shown on the camera with its Wi-Fi Direct info. Saved in your Keychain for \(ssid) — you won't be asked again.")
+                Text(
+                    "Shown on the camera with its Wi-Fi Direct info. Saved in your Keychain for \(ssid) — you won't be asked again."
+                )
             }
         }
     }

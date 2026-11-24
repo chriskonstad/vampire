@@ -1,9 +1,8 @@
 import Network
-import SwiftUI
-import UIKit
-
 import PTP
 import SonyMakerNotes
+import SwiftUI
+import UIKit
 import VampireIndex
 
 /// The camera side of a camera culling session: connect to the A7RV over
@@ -183,7 +182,7 @@ final class CameraSessionModel {
             await old?.disconnect()
             // A camera that just lost a session (phone slept, Wi-Fi blipped)
             // refuses new ones for a few seconds — retry before giving up.
-            for attempt in 1 ... 3 {
+            for attempt in 1...3 {
                 let token = UUID()
                 let client = SonyCameraClient(
                     host: ip, guid: self.guid, log: self.logSink,
@@ -256,7 +255,10 @@ final class CameraSessionModel {
         connectFlowIsInteractive = interactive
         record("connecting to the camera…")
         let flow = Task {
-            defer { isSearching = false; connectFlow = nil }
+            defer {
+                isSearching = false
+                connectFlow = nil
+            }
             // Already on the camera's network (iOS rejoins a saved one by
             // itself)? Connect — no join, no system prompt.
             if let host = await reachableCamera() {
@@ -271,8 +273,9 @@ final class CameraSessionModel {
                     phase = .failed(connectProblem ?? "")
                     return false
                 }
-                return await finishConnect(found: await CameraFinder.find(preferred: cameraIP, log: logSink),
-                                           notFound: "Camera not found. Tap Connect to join its Wi-Fi.")
+                return await finishConnect(
+                    found: await CameraFinder.find(preferred: cameraIP, log: logSink),
+                    notFound: "Camera not found. Tap Connect to join its Wi-Fi.")
             }
             var onCameraNetwork = false
             if link.hasSavedCamera {
@@ -282,10 +285,12 @@ final class CameraSessionModel {
                 onCameraNetwork = await link.pickAndJoin()
             }
             if onCameraNetwork {
-                return await finishConnect(found: await findOnCameraNetwork(),
-                                           notFound: "Joined the camera's Wi-Fi, but the camera didn't answer. Is Remote Shooting on?")
+                return await finishConnect(
+                    found: await findOnCameraNetwork(),
+                    notFound: "Joined the camera's Wi-Fi, but the camera didn't answer. Is Remote Shooting on?")
             }
-            connectProblem = linkProblem
+            connectProblem =
+                linkProblem
                 ?? "Couldn't reach the camera's Wi-Fi. Is the camera on, with Remote Shooting set to Wi-Fi Direct?"
             phase = .failed(connectProblem ?? "")
             return false
@@ -318,9 +323,11 @@ final class CameraSessionModel {
     /// moment it answers (no second tap), with a full scan as last resort.
     private func findOnCameraNetwork() async -> String? {
         let start = ContinuousClock.now
-        for attempt in 1 ... 20 {
+        for attempt in 1...20 {
             if let host = await reachableCamera() {
-                record("camera answered after \((ContinuousClock.now - start).formatted(.units(allowed: [.seconds], width: .narrow)))")
+                record(
+                    "camera answered after \((ContinuousClock.now - start).formatted(.units(allowed: [.seconds], width: .narrow)))"
+                )
                 return host
             }
             if attempt == 1 { record("waiting for the camera to answer on its Wi-Fi…") }
@@ -343,9 +350,9 @@ final class CameraSessionModel {
     private func startWatchingWiFi() {
         guard pathMonitor == nil else { return }
         #if targetEnvironment(simulator)
-        let monitor = NWPathMonitor()
+            let monitor = NWPathMonitor()
         #else
-        let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
+            let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
         #endif
         monitor.pathUpdateHandler = { [weak self] path in
             let up = path.status == .satisfied
@@ -362,7 +369,8 @@ final class CameraSessionModel {
     private func wifiChanged(up: Bool, gateways: [String]) {
         defer { lastGateways = gateways }
         guard autoConnects, up, gateways != lastGateways, !isConnected,
-              phase != .connecting, connectFlow == nil else { return }
+            phase != .connecting, connectFlow == nil
+        else { return }
         Task {
             // Sony's Wi-Fi Direct gateway, or the saved camera SSID.
             let onCamera: Bool
@@ -388,8 +396,9 @@ final class CameraSessionModel {
         record("searching this Wi-Fi for the camera…")
         return Task {
             defer { isSearching = false }
-            return await finishConnect(found: await CameraFinder.find(preferred: cameraIP, log: logSink),
-                                       notFound: "No camera on this Wi-Fi.")
+            return await finishConnect(
+                found: await CameraFinder.find(preferred: cameraIP, log: logSink),
+                notFound: "No camera on this Wi-Fi.")
         }
     }
 
@@ -504,7 +513,10 @@ final class CameraSessionModel {
         guard wantsLink, reconnectTask == nil else { return }
         isReconnecting = true
         reconnectTask = Task {
-            defer { isReconnecting = false; reconnectTask = nil }
+            defer {
+                isReconnecting = false
+                reconnectTask = nil
+            }
             var failures = 0
             while wantsLink, !isConnected, !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(2))
@@ -544,7 +556,8 @@ final class CameraSessionModel {
         guard let client else { return }
         prefetchTask = Task {
             // Frames with a cached preview don't need Sony's thumbnail at all.
-            for photo in photos where !hasThumbnail(forIndexID: photo.indexID) && previewURL(forIndexID: photo.indexID) == nil {
+            for photo in photos
+            where !hasThumbnail(forIndexID: photo.indexID) && previewURL(forIndexID: photo.indexID) == nil {
                 guard !Task.isCancelled else { return }
                 do {
                     let data = try await client.thumbnail(for: photo)
@@ -554,20 +567,24 @@ final class CameraSessionModel {
                         thumbnails[photo.indexID] = image
                         onImagesChanged?()
                     }
-                } catch where Self.isConnectionLoss(error) {
-                    lostConnection(error); return
+                } catch  where Self.isConnectionLoss(error) {
+                    lostConnection(error)
+                    return
                 } catch {
                     record("thumbnail \(photo.filename) failed: \(error)")
                 }
             }
             var failed = Set<String>()
             while !Task.isCancelled {
-                let needed = { (p: CameraPhoto) in self.previewURL(forIndexID: p.indexID) == nil && !failed.contains(p.indexID) }
+                let needed = { (p: CameraPhoto) in
+                    self.previewURL(forIndexID: p.indexID) == nil && !failed.contains(p.indexID)
+                }
                 guard let next = priority.first(where: needed) ?? photos.first(where: needed) else { break }
                 do {
                     try await fetchFrame(next, client: client)
-                } catch where Self.isConnectionLoss(error) {
-                    lostConnection(error); return
+                } catch  where Self.isConnectionLoss(error) {
+                    lostConnection(error)
+                    return
                 } catch {
                     // One bad frame must not end the session; retried on the
                     // next connect.
@@ -602,11 +619,13 @@ final class CameraSessionModel {
         onFrameCached?(photo, processed.record, processed.faces)
         onImagesChanged?()
         let elapsed = ContinuousClock.now - start
-        let detail = processed.record.map {
-            "AF \($0.focusLocation == nil ? "–" : "✓"), \($0.faceCount) faces, \($0.cameraModel ?? "no model")"
-        } ?? "already indexed"
-        record("cached \(photo.filename) \(preview.image.count / 1024)KB, \(detail), "
-            + elapsed.formatted(.units(allowed: [.seconds, .milliseconds], width: .narrow)))
+        let detail =
+            processed.record.map {
+                "AF \($0.focusLocation == nil ? "–" : "✓"), \($0.faceCount) faces, \($0.cameraModel ?? "no model")"
+            } ?? "already indexed"
+        record(
+            "cached \(photo.filename) \(preview.image.count / 1024)KB, \(detail), "
+                + elapsed.formatted(.units(allowed: [.seconds, .milliseconds], width: .narrow)))
     }
 
     // MARK: - Import keepers
@@ -627,8 +646,10 @@ final class CameraSessionModel {
         // auto-lock can't suspend the app mid-RAW. Either way the import
         // resumes at the byte it stopped if it is interrupted.
         let count = pendingImports.count
-        let work = ContinuedWork(title: "Importing \(count) keeper\(count == 1 ? "" : "s")",
-                                 subtitle: "From your camera, full RAWs") { [weak self] in
+        let work = ContinuedWork(
+            title: "Importing \(count) keeper\(count == 1 ? "" : "s")",
+            subtitle: "From your camera, full RAWs"
+        ) { [weak self] in
             self?.record("import stopped from the Live Activity / by the system")
             self?.importTask?.cancel()
         }
@@ -644,7 +665,10 @@ final class CameraSessionModel {
             }
             while !Task.isCancelled {
                 let queue = pendingImports.filter { !skipped.contains($0.indexID) }
-                guard let photo = queue.first else { succeeded = true; break }
+                guard let photo = queue.first else {
+                    succeeded = true
+                    break
+                }
                 importProgress = (done, done + queue.count)
                 let totalBytes = doneBytes + queue.reduce(Int64(0)) { $0 + Int64($1.sizeBytes) }
                 guard isConnected, let client else {
@@ -675,8 +699,9 @@ final class CameraSessionModel {
                     imported.insert(photo.indexID)
                     done += 1
                     doneBytes += Int64(photo.sizeBytes)
-                    record("imported \(photo.filename) in "
-                        + (ContinuousClock.now - start).formatted(.units(allowed: [.seconds], width: .narrow)))
+                    record(
+                        "imported \(photo.filename) in "
+                            + (ContinuousClock.now - start).formatted(.units(allowed: [.seconds], width: .narrow)))
                 } catch {
                     record("import \(photo.filename) failed: \(error)")
                     if Self.isConnectionLoss(error) {
@@ -690,7 +715,8 @@ final class CameraSessionModel {
                 }
             }
             let failed = skipped.count
-            lastImportSummary = "Imported \(done) keeper\(done == 1 ? "" : "s") to Photos"
+            lastImportSummary =
+                "Imported \(done) keeper\(done == 1 ? "" : "s") to Photos"
                 + (failed > 0 ? ", \(failed) failed (see log)" : "")
                 + ". Nothing was deleted from the card."
         }

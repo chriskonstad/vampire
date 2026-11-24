@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import SonyMakerNotes
 
 final class DisplayOrientationTests: XCTestCase {
@@ -12,11 +13,14 @@ final class DisplayOrientationTests: XCTestCase {
 
     func testOrientation6And3() {
         let p6 = DisplayOrientation.point((0.2, 0.1), exif: 6)
-        XCTAssertEqual(p6.x, 0.9, accuracy: 1e-9); XCTAssertEqual(p6.y, 0.2, accuracy: 1e-9)
+        XCTAssertEqual(p6.x, 0.9, accuracy: 1e-9)
+        XCTAssertEqual(p6.y, 0.2, accuracy: 1e-9)
         let p3 = DisplayOrientation.point((0.2, 0.1), exif: 3)
-        XCTAssertEqual(p3.x, 0.8, accuracy: 1e-9); XCTAssertEqual(p3.y, 0.9, accuracy: 1e-9)
+        XCTAssertEqual(p3.x, 0.8, accuracy: 1e-9)
+        XCTAssertEqual(p3.y, 0.9, accuracy: 1e-9)
         let p1 = DisplayOrientation.point((0.2, 0.1), exif: nil)
-        XCTAssertEqual(p1.x, 0.2); XCTAssertEqual(p1.y, 0.1)
+        XCTAssertEqual(p1.x, 0.2)
+        XCTAssertEqual(p1.y, 0.1)
     }
 
     func testRectSwapsAxesWhenRotated() {
@@ -30,8 +34,9 @@ final class DisplayOrientationTests: XCTestCase {
     /// Same real frame as above, through FocusLocation: point and AF box land
     /// where the free functions put them, with dimensions swapped.
     func testFocusLocationOrientation8MatchesPointMapping() {
-        let sensor = FocusLocation(imageWidth: 9504, imageHeight: 6336, x: 3445, y: 4778,
-                                   frameWidth: 475, frameHeight: 476)
+        let sensor = FocusLocation(
+            imageWidth: 9504, imageHeight: 6336, x: 3445, y: 4778,
+            frameWidth: 475, frameHeight: 476)
         let upright = sensor.displayOriented(exif: 8)
         XCTAssertEqual(upright.imageWidth, 6336)
         XCTAssertEqual(upright.imageHeight, 9504)

@@ -1,7 +1,6 @@
 import Foundation
-import UIKit
-
 import SonyMakerNotes
+import UIKit
 import VampireIndex
 
 extension CameraPhoto {
@@ -27,8 +26,9 @@ final class CameraFrameCache: Sendable {
         directory = URL.cachesDirectory.appendingPathComponent("camera-cache", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         // The old per-launch cache lived in tmp; drop it.
-        try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory
-            .appendingPathComponent("camera-cache", isDirectory: true))
+        try? FileManager.default.removeItem(
+            at: FileManager.default.temporaryDirectory
+                .appendingPathComponent("camera-cache", isDirectory: true))
     }
 
     /// "camera:DSC05508.ARW@1793247396115" -> "DSC05508.ARW-1793247396115"
@@ -56,7 +56,8 @@ final class CameraFrameCache: Sendable {
     /// touch the file system on the main thread.
     func inventory() -> (previews: Set<String>, thumbnails: Set<String>) {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
-        var previews = Set<String>(), thumbnails = Set<String>()
+        var previews = Set<String>()
+        var thumbnails = Set<String>()
         for name in names {
             // "DSC05508.ARW-1793247396115.thumb.jpg" -> "camera:DSC05508.ARW@1793247396115"
             let isThumb = name.hasSuffix(".thumb.jpg")
@@ -89,12 +90,19 @@ final class CameraFrameCache: Sendable {
     /// 1616px preview (faces/eyes, quality, feature print, aesthetics,
     /// horizon, saliency, exposure) plus EXIF/MakerNotes from the RAW head
     /// (model, orientation, AF point + frame). Off the main actor.
-    func process(_ photo: CameraPhoto, screennail: Data, metadata: ARWMetadata?,
-                 analyze: Bool) throws -> Processed {
+    func process(
+        _ photo: CameraPhoto, screennail: Data, metadata: ARWMetadata?,
+        analyze: Bool
+    ) throws -> Processed {
         guard let decoded = UIImage(data: screennail) else { throw CocoaError(.fileReadCorruptFile) }
-        let upright = UIGraphicsImageRenderer(size: decoded.size, format: {
-            let f = UIGraphicsImageRendererFormat(); f.scale = 1; return f
-        }()).image { _ in decoded.draw(at: .zero) }
+        let upright = UIGraphicsImageRenderer(
+            size: decoded.size,
+            format: {
+                let f = UIGraphicsImageRendererFormat()
+                f.scale = 1
+                return f
+            }()
+        ).image { _ in decoded.draw(at: .zero) }
         let url = previewURL(for: photo)
         try upright.jpegData(compressionQuality: 0.9)?.write(to: url)
         guard analyze else { return Processed(previewURL: url, record: nil, faces: []) }
