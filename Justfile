@@ -17,6 +17,7 @@ format:
 test:
     cd VampireCore && swift test
     python3 tools/test_fake_a7rv.py
+    python3 tools/test_thin_wrappers.py
 
 # Full App build for the iOS Simulator (generic destination: works on any
 # machine with the iOS SDK, no specific simulator needed)
