@@ -351,6 +351,50 @@ final class SignalAnalysisTests: XCTestCase {
         XCTAssertEqual(SignalAnalysis.overlapRatio(a, b), 0.125 / 0.375, accuracy: 0.001)
     }
 
+    func testClosedEyesBoundaryAtThreshold() {
+        func face(_ eyesOpen: Double?) -> FaceRecord {
+            FaceRecord(
+                assetID: "a", x: 0, y: 0, width: 0.1, height: 0.1,
+                captureQuality: nil, eyesOpen: eyesOpen
+            )
+        }
+        // `<` means open: exactly at the threshold does NOT count as closed.
+        XCTAssertEqual(
+            SignalAnalysis.closedEyes(faces: [face(SignalAnalysis.blinkThreshold)]), 0)
+        XCTAssertEqual(
+            SignalAnalysis.closedEyes(
+                faces: [face(SignalAnalysis.blinkThreshold - 0.001)]), 1)
+        XCTAssertEqual(
+            SignalAnalysis.closedEyes(
+                faces: [face(SignalAnalysis.blinkThreshold + 0.001)]), 0)
+        // Mixed: only the strictly-below face counts.
+        XCTAssertEqual(
+            SignalAnalysis.closedEyes(
+                faces: [
+                    face(SignalAnalysis.blinkThreshold - 0.01),
+                    face(SignalAnalysis.blinkThreshold),
+                    face(SignalAnalysis.blinkThreshold + 0.01),
+                ]), 1)
+    }
+
+    func testOverlapRatioDegenerateRects() {
+        let r = CGRect(x: 0.1, y: 0.2, width: 0.3, height: 0.4)
+        XCTAssertEqual(
+            SignalAnalysis.overlapRatio(r, CGRect(x: 0.1, y: 0.2, width: 0, height: 0.4)), 0)
+        XCTAssertEqual(
+            SignalAnalysis.overlapRatio(r, CGRect(x: 0.1, y: 0.2, width: 0.3, height: 0)), 0)
+        XCTAssertEqual(SignalAnalysis.overlapRatio(r, .null), 0)
+        XCTAssertEqual(SignalAnalysis.overlapRatio(.null, .null), 0)
+        XCTAssertEqual(SignalAnalysis.overlapRatio(.zero, .zero), 0)
+        // Negative dimensions must not produce NaN or a negative ratio.
+        XCTAssertEqual(
+            SignalAnalysis.overlapRatio(
+                r, CGRect(x: 0.1, y: 0.2, width: -0.3, height: 0.4)), 0)
+        XCTAssertEqual(
+            SignalAnalysis.overlapRatio(
+                r, CGRect(x: 0.1, y: 0.2, width: 0.3, height: -0.4)), 0)
+    }
+
     /// Pure CoreGraphics: synthetic solid images must land in the right buckets.
     func testExposureStatsBlackAndWhite() throws {
         let black = solidImage(r: 0, g: 0, b: 0)
@@ -363,6 +407,23 @@ final class SignalAnalysisTests: XCTestCase {
         XCTAssertGreaterThan(whiteStats.clipped, 0.9)
         XCTAssertLessThan(whiteStats.crushed, 0.1)
         XCTAssertGreaterThan(whiteStats.mean, 0.9)
+    }
+
+    func testExposureStatsMidGrey() throws {
+        let grey = solidImage(r: 128, g: 128, b: 128)
+        let stats = try XCTUnwrap(SignalAnalysis.exposureStats(of: grey))
+        XCTAssertLessThan(stats.clipped, 0.1)
+        XCTAssertLessThan(stats.crushed, 0.1)
+        // sRGB round-trips shift flat 128 up a little (~0.57), so allow room.
+        XCTAssertEqual(stats.mean, 0.5, accuracy: 0.1)
+    }
+
+    func testExposureStatsHalfBlackHalfWhite() throws {
+        let split = halfBlackHalfWhiteImage()
+        let stats = try XCTUnwrap(SignalAnalysis.exposureStats(of: split))
+        XCTAssertGreaterThan(stats.clipped, 0.3)
+        XCTAssertGreaterThan(stats.crushed, 0.3)
+        XCTAssertEqual(stats.mean, 0.5, accuracy: 0.1)
     }
 
     private func solidImage(r: UInt8, g: UInt8, b: UInt8) -> CGImage {
@@ -380,6 +441,23 @@ final class SignalAnalysisTests: XCTestCase {
                 red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255, alpha: 1
             ))
         context.fill(CGRect(x: 0, y: 0, width: side, height: side))
+        return context.makeImage()!
+    }
+
+    private func halfBlackHalfWhiteImage() -> CGImage {
+        let side = 32
+        guard
+            let context = CGContext(
+                data: nil, width: side, height: side,
+                bitsPerComponent: 8, bytesPerRow: side * 4,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        else { fatalError("context") }
+        context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: side / 2, height: side))
+        context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+        context.fill(CGRect(x: side / 2, y: 0, width: side - side / 2, height: side))
         return context.makeImage()!
     }
 }
