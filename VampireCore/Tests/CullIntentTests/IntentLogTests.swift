@@ -228,4 +228,94 @@ final class ApplyPlanTests: XCTestCase {
         XCTAssertEqual(plan.keeps, ["k"])
         XCTAssertTrue(plan.isLibrarySession)
     }
+
+    func testOverlapRejectWinsKeepsFiltered() {
+        let plan = try! ApplyPlan(
+            rejects: ["a", "b"], keeps: ["a", "k"], isLibrarySession: true, dryRun: false)
+        XCTAssertEqual(plan.rejects, ["a", "b"])
+        XCTAssertEqual(plan.keeps, ["k"])
+        XCTAssertTrue(plan.mutatesLibrary)
+    }
+
+    func testOverlapFullySharedKeepsEndUpEmpty() {
+        // The plan is still valid: the reject bucket alone justifies Apply.
+        let plan = try! ApplyPlan(
+            rejects: ["a"], keeps: ["a"], isLibrarySession: true, dryRun: false)
+        XCTAssertEqual(plan.rejects, ["a"])
+        XCTAssertEqual(plan.keeps, [])
+        XCTAssertTrue(plan.mutatesLibrary)
+    }
+
+    func testOverlapAndDuplicatesCombined() {
+        let plan = try! ApplyPlan(
+            rejects: ["a", "a", "b"], keeps: ["b", "a", "k", "k"],
+            isLibrarySession: true, dryRun: false)
+        XCTAssertEqual(plan.rejects, ["a", "b"])
+        XCTAssertEqual(plan.keeps, ["k"])
+    }
+
+    func testDuplicateRejectsDeduped() {
+        let plan = try! ApplyPlan(
+            rejects: ["a", "b", "a", "b", "c"], keeps: [], isLibrarySession: true,
+            dryRun: false)
+        XCTAssertEqual(plan.rejects, ["a", "b", "c"])
+        XCTAssertTrue(plan.mutatesLibrary)
+    }
+
+    func testDuplicateKeepsDeduped() {
+        let plan = try! ApplyPlan(
+            rejects: [], keeps: ["k2", "k1", "k2", "k1"], isLibrarySession: true,
+            dryRun: false)
+        XCTAssertEqual(plan.keeps, ["k2", "k1"])
+        XCTAssertFalse(plan.mutatesLibrary)
+    }
+
+    func testOrderingPreserved() {
+        let plan = try! ApplyPlan(
+            rejects: ["c", "a", "b"], keeps: ["k3", "k1", "k2"], isLibrarySession: true,
+            dryRun: true)
+        XCTAssertEqual(plan.rejects, ["c", "a", "b"])
+        XCTAssertEqual(plan.keeps, ["k3", "k1", "k2"])
+    }
+
+    func testKeepsOnlyDryRunMatrix() {
+        for dryRun in [true, false] {
+            let plan = try! ApplyPlan(
+                rejects: [], keeps: ["k"], isLibrarySession: true, dryRun: dryRun)
+            XCTAssertFalse(plan.mutatesLibrary, "dryRun=\(dryRun)")
+        }
+    }
+
+    func testRejectsOnlyDryRunMatrix() {
+        let dry = try! ApplyPlan(
+            rejects: ["a"], keeps: [], isLibrarySession: true, dryRun: true)
+        XCTAssertFalse(dry.mutatesLibrary)
+        let live = try! ApplyPlan(
+            rejects: ["a"], keeps: [], isLibrarySession: true, dryRun: false)
+        XCTAssertTrue(live.mutatesLibrary)
+    }
+
+    func testMixedPlanMutatesOnlyWhenNotDryRun() {
+        let dry = try! ApplyPlan(
+            rejects: ["a"], keeps: ["k"], isLibrarySession: true, dryRun: true)
+        XCTAssertFalse(dry.mutatesLibrary)
+        XCTAssertEqual(dry.rejects, ["a"])
+        XCTAssertEqual(dry.keeps, ["k"])
+        let live = try! ApplyPlan(
+            rejects: ["a"], keeps: ["k"], isLibrarySession: true, dryRun: false)
+        XCTAssertTrue(live.mutatesLibrary)
+        XCTAssertEqual(live.rejects, ["a"])
+        XCTAssertEqual(live.keeps, ["k"])
+    }
+
+    func testEmptyPlanThrowsRegardlessOfDryRun() {
+        for dryRun in [true, false] {
+            XCTAssertThrowsError(
+                try ApplyPlan(
+                    rejects: [], keeps: [], isLibrarySession: true, dryRun: dryRun)
+            ) { error in
+                XCTAssertEqual(error as? ApplyPlanError, .nothingToApply, "dryRun=\(dryRun)")
+            }
+        }
+    }
 }

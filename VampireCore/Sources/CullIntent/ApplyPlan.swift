@@ -20,13 +20,27 @@ public struct ApplyPlan: Sendable, Equatable {
     /// Throws `nothingToApply` when there is no reject and no keep, and
     /// `notALibrarySession` for camera sessions — their Apply is an import,
     /// never a deletion (hard rule: never delete off the card).
+    ///
+    /// Normalization (pinned by ApplyPlanTests): reject wins over keep — any
+    /// ID present in both buckets is deleted and filtered out of `keeps`, so
+    /// an asset is never both deleted and kept. Each bucket is also
+    /// de-duplicated preserving first-seen order, so the batch delete list
+    /// and summary counts never double-count an asset.
     public init(rejects: [String], keeps: [String], isLibrarySession: Bool, dryRun: Bool) throws {
         guard isLibrarySession else { throw ApplyPlanError.notALibrarySession }
         guard !rejects.isEmpty || !keeps.isEmpty else { throw ApplyPlanError.nothingToApply }
-        self.rejects = rejects
-        self.keeps = keeps
+        let uniqueRejects = Self.stableUnique(rejects)
+        let rejectSet = Set(uniqueRejects)
+        self.rejects = uniqueRejects
+        self.keeps = Self.stableUnique(keeps.filter { !rejectSet.contains($0) })
         self.isLibrarySession = isLibrarySession
         self.dryRun = dryRun
+    }
+
+    /// De-duplicates IDs preserving first-seen order.
+    private static func stableUnique(_ ids: [String]) -> [String] {
+        var seen = Set<String>()
+        return ids.filter { seen.insert($0).inserted }
     }
 
     /// `true` when a non-dry-run Apply will mutate the Photos library at all.
