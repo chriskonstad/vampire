@@ -10,8 +10,10 @@ import XCTest
 ///     { "focusLocation": [9504, 6336, 4752, 3168], "model": "ILCE-7RM5" }
 ///
 /// Per CLAUDE.md: when adding a layout assumption, add the fixture + the
-/// exiftool dump here. With no fixtures present these tests skip — synthetic
-/// coverage lives in ARWHeadParserTests.
+/// exiftool dump here. With no fixtures present these tests skip for local
+/// dev — synthetic coverage lives in ARWHeadParserTests — but fail closed
+/// under CI (see `fixturesAreRequired`) so the gate never passes silently
+/// with zero real-file coverage.
 final class RealFixtureTests: XCTestCase {
     struct Expected: Decodable {
         var focusLocation: [Int]?
@@ -23,6 +25,47 @@ final class RealFixtureTests: XCTestCase {
     }
 
     static let fixtureExtensions: Set<String> = ["arw", "raf", "jpg", "jpeg"]
+
+    /// Fail-closed gate: when no fixtures are present, local runs still skip,
+    /// but CI runs fail loudly so zero real-file coverage can't pass silently.
+    /// Set via `VAMPIRE_REQUIRE_FIXTURES=1`; `CI=true` and
+    /// `GITHUB_ACTIONS=true` imply it as well.
+    static var fixturesAreRequired: Bool {
+        let env = ProcessInfo.processInfo.environment
+        func isTruthy(_ key: String) -> Bool {
+            guard let value = env[key]?.lowercased() else { return false }
+            return value == "1" || value == "true" || value == "yes"
+        }
+        return isTruthy("VAMPIRE_REQUIRE_FIXTURES") || isTruthy("CI")
+            || isTruthy("GITHUB_ACTIONS")
+    }
+
+    /// Fail closed when `fixtures` is empty and fixtures are required;
+    /// otherwise skip (local dev). Returns true when the caller should
+    /// proceed with the fixture list (non-empty).
+    @discardableResult
+    static func requireFixturesOrSkip(
+        _ fixtures: [URL],
+        skipMessage: String = "no camera fixtures in fixtures/ — add real files to enable",
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> Bool {
+        if !fixtures.isEmpty { return true }
+        if fixturesAreRequired {
+            XCTFail(
+                "No camera fixtures found in \(fixturesURL.path) while "
+                    + "VAMPIRE_REQUIRE_FIXTURES=1 (or CI=true / GITHUB_ACTIONS=true) is set. "
+                    + "Add real camera files to fixtures/ per fixtures/README.md "
+                    + "(drop in <name>.ARW plus the exiftool ground truth as "
+                    + "<name>.expected.json) instead of shipping zero real-file coverage.",
+                file: file,
+                line: line
+            )
+            return false
+        }
+        try XCTSkipIf(true, skipMessage, file: file, line: line)
+        return false
+    }
 
     static var fixturesURL: URL {
         URL(fileURLWithPath: #filePath)
@@ -39,7 +82,7 @@ final class RealFixtureTests: XCTestCase {
                 at: Self.fixturesURL, includingPropertiesForKeys: nil
             ))?.filter { Self.fixtureExtensions.contains($0.pathExtension.lowercased()) } ?? []
 
-        try XCTSkipIf(fixtures.isEmpty, "no camera fixtures in fixtures/ — add real files to enable")
+        guard try Self.requireFixturesOrSkip(fixtures) else { return }
 
         for url in fixtures.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             let name = url.lastPathComponent
@@ -94,7 +137,7 @@ final class RealFixtureTests: XCTestCase {
             (try? FileManager.default.contentsOfDirectory(
                 at: Self.fixturesURL, includingPropertiesForKeys: nil
             ))?.filter { Self.fixtureExtensions.contains($0.pathExtension.lowercased()) } ?? []
-        try XCTSkipIf(fixtures.isEmpty, "no camera fixtures")
+        guard try Self.requireFixturesOrSkip(fixtures, skipMessage: "no camera fixtures") else { return }
 
         let chunkSize = 64 * 1024  // PHAssetResourceManager delivers chunks of this order
         for url in fixtures {
